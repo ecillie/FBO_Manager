@@ -170,7 +170,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 - The system may be used at any hour; no workflow assumes a nightly application shutdown.
 - The shared MVP environment targets 25 concurrent staff users and 100 aircraft visits per operating day.
 - PostgreSQL remains available as the authoritative transactional store; the MVP does not provide offline writes.
-- Polling is an acceptable initial current-state refresh mechanism. Issue #32 may select a real-time transport if workflow targets require it.
+- The visible operations dashboard polls every 10 seconds under the decision in [ADR 0003](decisions/0003-api-contracts-and-operational-data-flows.md); push transport is deferred beyond the MVP.
 - The airport timezone is configured before operational scheduling begins.
 - Quantities use controlled units and fixed-precision decimals; automatic cross-unit conversion is not assumed.
 - Historical operational records are retained. A legal retention and archival schedule is a later governance decision.
@@ -182,7 +182,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 | Local versus delegated identity | #33 | Treat identity as a replaceable trust boundary tied to active workers. |
 | Frontend framework and state libraries | #30 | No architecture dependency on a specific browser framework. |
 | Backend framework and repository tooling | #31 | Preserve handler/service/repository boundaries and PostgreSQL transactions. |
-| Polling versus push updates | #32 | Bounded polling is acceptable for MVP planning. |
+| Push updates beyond the polling baseline | Future architecture decision | [ADR 0003](decisions/0003-api-contracts-and-operational-data-flows.md) selects 10-second visible-page polling for the MVP. |
 | Hosting platform and topology | #34 | One backend deployment and one PostgreSQL database. |
 | Monitoring and backup provider | #35 | Structured logs, daily backups, and restore verification are mandatory. |
 

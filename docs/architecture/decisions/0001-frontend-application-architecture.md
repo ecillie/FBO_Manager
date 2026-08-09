@@ -19,7 +19,7 @@ The frontend must make current work easy to understand while preserving the syst
 - Core browser workflows must meet WCAG 2.2 AA expectations.
 - A future native client will reuse the backend contract but is not part of this decision.
 
-Issues #12, #24, and #32 still own the exact HTTP conventions, OpenAPI artifact, and operational data flows. This ADR defines the frontend side of those boundaries and must remain compatible with their eventual decisions.
+[ADR 0003](0003-api-contracts-and-operational-data-flows.md) now defines the exact HTTP conventions and operational data flows. Issues #12 and #24 implement and publish that contract; this ADR defines the frontend side of the same boundary.
 
 ## Decision
 
@@ -174,7 +174,7 @@ The initial freshness profiles are:
 | Configuration and reference catalogs | 5 minutes | Refresh on focus when stale and after administration mutations |
 | Retained history | 1 minute | No interval polling; refresh after a related successful mutation |
 
-Polling pauses for hidden documents and resumes immediately when the document becomes visible. This meets the 15-second MVP dashboard-freshness target without introducing a push transport before issue #32. Issue #32 may replace selected polling queries with server-sent events or another transport later; TanStack Query remains the normalized read cache.
+Polling pauses for hidden documents and resumes immediately when the document becomes visible. This is the MVP transport selected by [ADR 0003](0003-api-contracts-and-operational-data-flows.md) and meets the 15-second dashboard-freshness target. Server-sent events and WebSockets are deferred; TanStack Query remains the normalized read cache.
 
 ### Mutation, invalidation, retry, and optimistic-update policy
 
@@ -182,7 +182,7 @@ Successful mutations use the response to update an exact detail entry when it is
 
 Read queries retry at most twice for transient network failures, HTTP 408, HTTP 429 when allowed by the response, and HTTP 5xx. Retries use capped exponential backoff with jitter and honor `Retry-After`. Reads do not retry authentication, authorization, not-found, validation, or conflict responses.
 
-Mutations do not retry automatically. After issue #32 identifies an operation as idempotent, an explicit user retry may reuse the same idempotency key when the previous outcome is unknown. A new user intent receives a new key. The client must not invent idempotency for an endpoint that does not guarantee it.
+Mutations do not retry automatically. An explicit user retry may reuse the same idempotency key when the previous outcome is unknown and the operation is marked idempotent under [ADR 0003](0003-api-contracts-and-operational-data-flows.md). A new user intent receives a new key. The client must not invent idempotency for an endpoint that does not guarantee it.
 
 Operational writes use server-confirmed updates. The frontend must not optimistically claim success for:
 
@@ -271,7 +271,7 @@ Core workflows are verified at representative 390 px, 768 px, and 1280 px viewpo
 
 The frontend uses the configured airport IANA timezone for operational display and UTC instants at the API boundary.
 
-- API timestamps are parsed only from the unambiguous format selected by issue #32, expected to be ISO 8601 UTC instants.
+- API timestamps are parsed only as the RFC 3339 UTC instants defined by [ADR 0003](0003-api-contracts-and-operational-data-flows.md).
 - Operational timestamps are formatted through a shared `Intl.DateTimeFormat` service with the airport `timeZone`; components do not call locale formatting ad hoc.
 - Displays identify the airport-local context, including a timezone abbreviation or explicit label where confusion is plausible.
 - Date-only values remain `YYYY-MM-DD` calendar values and are not converted through a UTC instant.
@@ -299,7 +299,7 @@ Identifiers and natural codes are displayed in their canonical form. Locale-awar
 - MUI adds runtime and styling weight; imports, route splitting, and bundle budgets must be monitored.
 - The MUI X Community tier may not include every desired grid behavior. A commercial tier requires a separate cost and licensing decision.
 - Committed generated types add review noise, but they make contract drift and upgrade effects explicit.
-- Polling creates repeated reads. Query scoping and database indexes must keep the 10-second operational refresh inexpensive until issue #32 revisits transport.
+- Polling creates repeated reads. Query scoping and database indexes must keep the selected 10-second operational refresh inexpensive.
 - Browser-only operation provides no offline writes; this is an accepted MVP non-goal.
 
 ## Rejected alternatives
@@ -317,7 +317,7 @@ Identifiers and natural codes are displayed in their canonical form. Locale-awar
 | Tailwind plus individually assembled headless components | This provides visual flexibility but shifts more accessibility, theming, and data-grid composition work into the MVP. MUI is a faster fit for an operational application. |
 | MUI X Pro or Premium | The MVP has not established a need that justifies a commercial runtime license. |
 | Offline-first storage or a service-worker write queue | Offline writes conflict with the MVP's authoritative transactional backend and are explicitly outside scope. |
-| WebSockets by default | The 15-second freshness target accepts bounded polling. Issue #32 retains ownership of any push-transport decision. |
+| WebSockets by default | [ADR 0003](0003-api-contracts-and-operational-data-flows.md) selects bounded polling because it meets the 15-second freshness target; push transport requires later measured evidence and a new decision. |
 
 ## Compliance and revision
 

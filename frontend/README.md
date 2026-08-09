@@ -2,7 +2,7 @@
 
 The MVP frontend is an authenticated React and TypeScript single-page application for airport operations. Issue [#30](https://github.com/ecillie/FBO_Manager/issues/30) defines its architecture without implementing screens.
 
-The accepted technology, feature boundaries, state ownership, API-client strategy, routing conventions, accessibility requirements, responsive behavior, and rejected alternatives are recorded in [ADR 0001](../docs/architecture/decisions/0001-frontend-application-architecture.md).
+The accepted technology, feature boundaries, state ownership, API-client strategy, routing conventions, accessibility requirements, responsive behavior, and rejected alternatives are recorded in [ADR 0001](../docs/architecture/decisions/0001-frontend-application-architecture.md). The shared HTTP/JSON contract, idempotency behavior, dashboard projection, and polling decision are defined by [ADR 0003](../docs/architecture/decisions/0003-api-contracts-and-operational-data-flows.md) and the detailed [API contracts and operational data flows](../docs/architecture/api-contracts-and-data-flows.md).
 
 ## Architecture summary
 

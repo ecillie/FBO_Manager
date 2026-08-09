@@ -4,7 +4,7 @@
 
 This document is the entry point for the FBO Manager MVP architecture. It records the constraints and priorities that guide the more detailed frontend, backend, API, security, deployment, and testing decisions.
 
-The current baseline covers the architecture drivers from GitHub issue [#28](https://github.com/ecillie/FBO_Manager/issues/28), the system context and container boundaries from issue [#29](https://github.com/ecillie/FBO_Manager/issues/29), the frontend application architecture from issue [#30](https://github.com/ecillie/FBO_Manager/issues/30), and the backend application architecture from issue [#31](https://github.com/ecillie/FBO_Manager/issues/31). API, security, deployment, operations, and release decisions will be added by the remaining architecture issues under the [MVP architecture epic](https://github.com/ecillie/FBO_Manager/issues/5).
+The current baseline covers the architecture drivers from GitHub issue [#28](https://github.com/ecillie/FBO_Manager/issues/28), the system context and container boundaries from issue [#29](https://github.com/ecillie/FBO_Manager/issues/29), the frontend application architecture from issue [#30](https://github.com/ecillie/FBO_Manager/issues/30), the backend application architecture from issue [#31](https://github.com/ecillie/FBO_Manager/issues/31), and the [API contracts and operational data flows](architecture/api-contracts-and-data-flows.md) from issue [#32](https://github.com/ecillie/FBO_Manager/issues/32). Security, deployment, operations, and release decisions will be added by the remaining architecture issues under the [MVP architecture epic](https://github.com/ecillie/FBO_Manager/issues/5).
 
 The architecture is intentionally optimized for a single FBO operating at one airport. It is not a premature multi-tenant platform design.
 
@@ -40,7 +40,7 @@ Detailed actors, workflow boundaries, and failure expectations are maintained in
 
 ## 4. System context and container boundaries
 
-The diagrams use solid arrows for required MVP communication and dashed arrows for explicitly non-MVP relationships. Each arrow points from the initiator or data sender to the recipient and names its purpose, sensitive content where applicable, and protocol constraint. The frontend and backend framework choices are recorded by issues #30 and #31. Identity placement, exact API flows, and infrastructure providers remain owned by issues #32 through #35.
+The diagrams use solid arrows for required MVP communication and dashed arrows for explicitly non-MVP relationships. Each arrow points from the initiator or data sender to the recipient and names its purpose, sensitive content where applicable, and protocol constraint. The frontend and backend framework choices are recorded by issues #30 and #31, and the exact API flows are recorded in [ADR 0003](architecture/decisions/0003-api-contracts-and-operational-data-flows.md). Identity placement and infrastructure providers remain owned by issues #33 through #35.
 
 ### 4.1 System context
 
@@ -148,7 +148,7 @@ Architecture and testing must cover these end-to-end paths:
 3. **Workforce dispatch:** schedule and start a shift, assign a worker and optional vehicle to a task, start and complete the task, and derive current availability.
 4. **Airport administration:** configure the singleton airport, parking layout, reference catalogs, fleet, fuel tanks, and workers without damaging operational history.
 
-Detailed steps, invariants, and expected failure behavior are in [MVP scope, actors, and workflows](architecture/mvp-scope-and-workflows.md).
+Detailed steps, invariants, and expected failure behavior are in [MVP scope, actors, and workflows](architecture/mvp-scope-and-workflows.md). The frontend/backend exchanges, transaction boundaries, concurrency outcomes, and dashboard read composition are in [API contracts and operational data flows](architecture/api-contracts-and-data-flows.md).
 
 ## 6. Data and consistency baseline
 
@@ -215,7 +215,7 @@ The following are outside the MVP architecture:
 | Context and containers | #29 | System-context and container diagrams |
 | Frontend structure | #30 | [ADR 0001: Frontend application architecture and state boundaries](architecture/decisions/0001-frontend-application-architecture.md) |
 | Backend boundaries | #31 | [ADR 0002: Backend application architecture and dependency boundaries](architecture/decisions/0002-backend-application-architecture.md) |
-| API and data flows | #32 | API conventions and sequence diagrams |
+| API and data flows | #32 | [API contracts and operational data flows](architecture/api-contracts-and-data-flows.md) and [ADR 0003](architecture/decisions/0003-api-contracts-and-operational-data-flows.md) |
 | Security | #33 | Identity decision, capability matrix, and threat model |
 | Deployment | #34 | Environment and deployment topology |
 | Operations | #35 | Observability and recovery model |
