@@ -4,7 +4,7 @@
 
 This document is the entry point for the FBO Manager MVP architecture. It records the constraints and priorities that guide the more detailed frontend, backend, API, security, deployment, and testing decisions.
 
-The current baseline covers the architecture drivers from GitHub issue [#28](https://github.com/ecillie/FBO_Manager/issues/28), the system context and container boundaries from issue [#29](https://github.com/ecillie/FBO_Manager/issues/29), and the frontend application architecture from issue [#30](https://github.com/ecillie/FBO_Manager/issues/30). Backend, API, security, deployment, operations, and release decisions will be added by the remaining architecture issues under the [MVP architecture epic](https://github.com/ecillie/FBO_Manager/issues/5).
+The current baseline covers the architecture drivers from GitHub issue [#28](https://github.com/ecillie/FBO_Manager/issues/28), the system context and container boundaries from issue [#29](https://github.com/ecillie/FBO_Manager/issues/29), the frontend application architecture from issue [#30](https://github.com/ecillie/FBO_Manager/issues/30), and the backend application architecture from issue [#31](https://github.com/ecillie/FBO_Manager/issues/31). API, security, deployment, operations, and release decisions will be added by the remaining architecture issues under the [MVP architecture epic](https://github.com/ecillie/FBO_Manager/issues/5).
 
 The architecture is intentionally optimized for a single FBO operating at one airport. It is not a premature multi-tenant platform design.
 
@@ -40,7 +40,7 @@ Detailed actors, workflow boundaries, and failure expectations are maintained in
 
 ## 4. System context and container boundaries
 
-The diagrams use solid arrows for required MVP communication and dashed arrows for explicitly non-MVP relationships. Each arrow points from the initiator or data sender to the recipient and names its purpose, sensitive content where applicable, and protocol constraint. Identity placement, implementation frameworks, and infrastructure providers remain owned by issues #30 through #35; the diagrams do not preselect them.
+The diagrams use solid arrows for required MVP communication and dashed arrows for explicitly non-MVP relationships. Each arrow points from the initiator or data sender to the recipient and names its purpose, sensitive content where applicable, and protocol constraint. The frontend and backend framework choices are recorded by issues #30 and #31. Identity placement, exact API flows, and infrastructure providers remain owned by issues #32 through #35.
 
 ### 4.1 System context
 
@@ -85,7 +85,7 @@ flowchart TB
     end
 
     subgraph applicationBoundary["FBO Manager application trust boundary"]
-        backend["Backend API<br/>[MVP CONTAINER]"]
+        backend["Backend API<br/>[MVP CONTAINER]<br/>Java 25 and Spring Boot 4.1 modular monolith"]
     end
 
     subgraph dataBoundary["Restricted operational-data trust boundary"]
@@ -126,7 +126,7 @@ flowchart TB
 | --- | --- | --- | --- | --- |
 | Browser frontend | MVP container | Present staff workflows, collect user intent, and provide usability validation without becoming a source of operational truth. | React 19.2 and TypeScript 6 SPA built with Vite 8.1; React Router 8, TanStack Query 5, React Hook Form/Zod, and Material UI 9. See [ADR 0001](architecture/decisions/0001-frontend-application-architecture.md). | HTTPS/JSON with the backend; HTTPS with a delegated identity authority if selected. |
 | Native mobile client | Planned future client; not MVP | Present field-oriented workflows without duplicating authorization, transactions, or other business rules from the backend. | Framework, supported devices, distribution, and any offline model require a separate future decision. | HTTPS/JSON with the same backend API; the authentication flow selected by issue #33. |
-| Backend API | MVP container | Authenticate and authorize requests, enforce business rules, own transactions, and expose bounded current-state queries. | One server application; framework and internal boundaries are selected by issue #31. | HTTPS/JSON with the MVP browser frontend and future native client; PostgreSQL wire protocol over TLS with the database; the identity and operations protocols selected by issues #33 and #35. |
+| Backend API | MVP container | Authenticate and authorize requests, enforce business rules, own transactions, and expose bounded current-state queries. | Java 25 and Spring Boot 4.1 synchronous modular monolith; Spring Modulith capability boundaries, Spring MVC, Spring Data JPA/Hibernate, `JdbcClient`, Flyway, PostgreSQL JDBC, HikariCP, and Actuator. See [ADR 0002](architecture/decisions/0002-backend-application-architecture.md). | HTTPS/JSON with the MVP browser frontend and future native client; PostgreSQL wire protocol over TLS with the database; the identity and operations protocols selected by issues #33 and #35. |
 | PostgreSQL database | MVP container | Retain operational history and enforce relational, uniqueness, transactional, and concurrency invariants. | PostgreSQL with ordered, repository-managed migrations; authoritative operational store. | PostgreSQL wire protocol over TLS with the backend; encrypted backup transport selected by issue #35. |
 | Identity authority | Required MVP logical service; placement pending | Establish a trusted worker identity and session validity without accepting client-supplied authority. | Local or delegated implementation selected by issue #33. | In-process backend contract if local; HTTPS authentication and validation flow if delegated. |
 | Operations services | Required MVP logical services; providers pending | Monitor health, retain redacted structured logs, and create recoverable automated daily backups. | Hosting topology and providers selected by issues #34 and #35; multi-zone HA and PITR remain Release One. | HTTPS health polling plus encrypted log and backup transports selected by issue #35. |
@@ -214,7 +214,7 @@ The following are outside the MVP architecture:
 | --- | --- | --- |
 | Context and containers | #29 | System-context and container diagrams |
 | Frontend structure | #30 | [ADR 0001: Frontend application architecture and state boundaries](architecture/decisions/0001-frontend-application-architecture.md) |
-| Backend boundaries | #31 | Backend architecture decision record |
+| Backend boundaries | #31 | [ADR 0002: Backend application architecture and dependency boundaries](architecture/decisions/0002-backend-application-architecture.md) |
 | API and data flows | #32 | API conventions and sequence diagrams |
 | Security | #33 | Identity decision, capability matrix, and threat model |
 | Deployment | #34 | Environment and deployment topology |
