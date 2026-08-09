@@ -1,36 +1,20 @@
-# Database initialization
+# Database schema baseline
 
-The database initializer creates the PostgreSQL schema described in [the ER report](../docs/database-design.md), adds database-level business constraints, creates current-state and fuel-balance views, and seeds reusable reference data.
+The current repository contains the initial PostgreSQL schema described in [the database design](../docs/database-design.md) and [ER diagram](../docs/database-er-diagram.md). It creates database-level business constraints plus current-state and fuel-balance views. It is a design/bootstrap artifact, not yet the application-owned migration path.
 
 ## Files
 
-- `init/001_schema.sql` creates the schema, constraints, indexes, triggers, sequences, and views.
-- `init/002_reference_data.sql` seeds fuel types, aircraft categories, service types, vehicle types, and worker roles.
-- `init-db.sh` applies both files in order with `psql` error handling enabled.
+- [`init/001_schema.sql`](init/001_schema.sql) creates the schema, constraints, indexes, triggers, sequences, and views.
 
-Airport-specific data is intentionally not seeded. After initialization, configure the airport and then add its parking layout, aircraft catalog, aircraft operation types, fleet, fuel tanks, and workers. Suggested operation types include commercial, general aviation, medical, and military, with additional values configured as needed.
+Reference-data seed and initializer files are not currently present. Backend migration issue [#11](https://github.com/ecillie/FBO_Manager/issues/11) must convert this baseline to ordered Flyway migrations and add idempotent reference seeds before a runnable backend claims database setup support.
 
-## Initialize a new database
+## Initialization and migration policy
 
-Set `DATABASE_URL` to a new, empty PostgreSQL database and run:
+There is intentionally no documented runnable initialization command until issue #11 provides the Maven/Flyway application context, migration files, idempotent seed logic, and local PostgreSQL 18 workflow. Do not apply `001_schema.sql` repeatedly to an initialized database or edit a deployed database manually.
 
-```bash
-export DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/fbo_manager'
-./db/init-db.sh
-```
+The accepted deployment path runs a one-shot migration command from the exact backend image before application replacement. Released migrations are immutable and production fixes move forward with a new migration. See [ADR 0005](../docs/architecture/decisions/0005-portable-single-region-container-deployment.md) and the [deployment architecture](../docs/architecture/deployment.md#7-migration-and-deployment-sequence).
 
-Then create the required single airport record:
-
-```sql
-INSERT INTO airport_settings (icao_code, name, iata_code, timezone)
-VALUES ('KXXX', 'Example Airport', NULL, 'America/New_York');
-```
-
-Replace every example value before executing the statement. The database permits at most one `airport_settings` row.
-
-## Seed behavior
-
-The reference-data script is safe to rerun. The schema script is an initial migration for a new database and must not be rerun against an initialized database. Future schema changes should be added as ordered migrations rather than editing a deployed database manually.
+Airport-specific data is never seeded. After backend implementation, an authorized administrator configures the singleton airport and adds its parking layout, aircraft/reference catalogs, fleet, fuel tanks, workers, and identity links through audited application workflows.
 
 ## Useful derived views
 

@@ -6,7 +6,7 @@ This document defines who uses FBO Manager, which operational outcomes the MVP s
 
 ## 2. Actors
 
-The names below describe operational responsibilities. Issue #33 will convert them into an exact role and capability matrix.
+The names below describe operational responsibilities. The exact seeded roles and enforced capabilities are defined in the [security architecture](security.md#4-roles-and-capabilities); a configured role may combine these responsibilities.
 
 | Actor | Primary responsibilities | Typical write authority |
 | --- | --- | --- |
@@ -175,15 +175,15 @@ An individual worker may hold a configured role that combines responsibilities. 
 - Quantities use controlled units and fixed-precision decimals; automatic cross-unit conversion is not assumed.
 - Historical operational records are retained. A legal retention and archival schedule is a later governance decision.
 
-## 10. Deferred decisions
+## 10. Accepted and deferred decisions
 
-| Decision | Owner issue | Baseline until decided |
+| Decision | Owner | Current baseline |
 | --- | --- | --- |
-| Local versus delegated identity | #33 | Treat identity as a replaceable trust boundary tied to active workers. |
-| Frontend framework and state libraries | #30 | No architecture dependency on a specific browser framework. |
-| Backend framework and repository tooling | #31 | Preserve handler/service/repository boundaries and PostgreSQL transactions. |
+| Identity and application sessions | [ADR 0004](decisions/0004-delegated-identity-and-capability-authorization.md) | Delegated OIDC login, exact active-worker link, and backend-owned opaque session. |
+| Frontend framework and state libraries | [ADR 0001](decisions/0001-frontend-application-architecture.md) | React/TypeScript feature architecture with TanStack Query server state and explicit UI/form/URL ownership. |
+| Backend framework and repository tooling | [ADR 0002](decisions/0002-backend-application-architecture.md) | Java/Spring modular monolith with application-service transactions and persistence ports/adapters. |
 | Push updates beyond the polling baseline | Future architecture decision | [ADR 0003](decisions/0003-api-contracts-and-operational-data-flows.md) selects 10-second visible-page polling for the MVP. |
-| Hosting platform and topology | #34 | One backend deployment and one PostgreSQL database. |
-| Monitoring and backup provider | #35 | Structured logs, daily backups, and restore verification are mandatory. |
+| Hosting topology | [ADR 0005](decisions/0005-portable-single-region-container-deployment.md) | Same-origin managed containers and one managed PostgreSQL 18 primary; exact conforming provider is launch configuration. |
+| Telemetry and recovery | [ADR 0006](decisions/0006-managed-telemetry-and-tested-backup-recovery.md) | Managed redacted telemetry, daily encrypted backups, quarterly restore, 24-hour RPO/four-hour RTO. |
 
-These decisions are deferred deliberately; they do not reopen the accepted MVP scope.
+Provider selection and future push transport do not reopen the accepted MVP scope or application boundaries.

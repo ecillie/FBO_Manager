@@ -6,7 +6,7 @@ This document defines the stable HTTP and JSON boundary between FBO Manager clie
 
 The conventions are requirements for [issue #12](https://github.com/ecillie/FBO_Manager/issues/12), which implements the shared backend HTTP layer, and [issue #24](https://github.com/ecillie/FBO_Manager/issues/24), which publishes and validates the machine-readable OpenAPI contract. This document defines behavior and examples; the canonical route and schema inventory will be `contracts/openapi/v1.yaml` when issue #24 is implemented.
 
-Identity and capability details remain owned by issue #33. Every route described here is authenticated unless the security decision explicitly marks it as a health endpoint.
+Identity and capability details are defined by [ADR 0004](decisions/0004-delegated-identity-and-capability-authorization.md) and the [security architecture](security.md). Every route described here is authenticated through the backend-owned session unless the security architecture explicitly marks it as a health or authentication endpoint.
 
 ## 2. HTTP API style and versioning
 

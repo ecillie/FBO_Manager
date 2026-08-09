@@ -121,13 +121,13 @@ State is classified before choosing where to store it:
 | Server state | TanStack Query | API records, lists, current-state views, histories, permissions returned with resources; never copied into a general client store |
 | URL and navigation state | React Router params and validated search parameters | Selected date, visit, tab, filters, sorting, and pagination when a refresh or shared link should preserve them |
 | Form state | React Hook Form with Zod usability validation | Unsaved field values, touched/dirty state, and client validation; reset from a confirmed server result after success |
-| Authentication state | An application auth provider behind an adapter owned by issue #33 | Bootstrap status, current identity, session status, and server-issued capabilities; token storage and renewal follow the security ADR |
+| Authentication state | An application auth provider behind an adapter conforming to [ADR 0004](0004-delegated-identity-and-capability-authorization.md) | Bootstrap status, current identity, session status, CSRF value for unsafe requests, and server-issued capabilities; the opaque authentication cookie is HttpOnly and inaccessible to the SPA |
 | Transient UI state | Component-local `useState` or `useReducer` | Dialog visibility, disclosure state, temporary selection, and hover/focus interactions |
 | Theme and application chrome | Narrow React contexts | Theme preference, notification dispatch, and other cross-cutting presentation services |
 
 Redux, Zustand, and other general global stores are not included in the MVP baseline. They may be introduced only when a documented client-owned workflow cannot be expressed cleanly through URL, form, local, authentication, or server state. Server responses must never be mirrored into such a store merely for convenient access.
 
-Persistent browser storage is not an operational datastore. It may retain non-sensitive presentation preferences such as table density. It must not retain fuel transactions, visit drafts, authorization claims, access tokens, or an offline write queue. The authentication decision in issue #33 determines whether any credential material may be stored by the browser.
+Persistent browser storage is not an operational datastore. It may retain non-sensitive presentation preferences such as table density. It must not retain fuel transactions, visit drafts, authorization claims, access/identity/refresh tokens, the opaque application session, or an offline write queue. Under [ADR 0004](0004-delegated-identity-and-capability-authorization.md), the browser receives authentication state only in a `Secure`, `HttpOnly`, host-only cookie managed by the backend.
 
 ### API client and generated contract
 
@@ -149,7 +149,7 @@ CI will:
 4. type-check the frontend with `tsc --noEmit`; and
 5. run contract-facing tests against representative success and error responses.
 
-`openapi-fetch` provides the only low-level HTTP client. It is configured once with the API base URL and cross-cutting middleware selected by issues #12, #32, and #33, including session credentials, request identifiers, safe error normalization, and idempotency headers where required. Feature modules wrap typed paths in query and mutation option factories; components do not call `fetch` directly.
+`openapi-fetch` provides the only low-level HTTP client. It is configured once with the API base URL and cross-cutting middleware defined by [ADR 0003](0003-api-contracts-and-operational-data-flows.md) and [ADR 0004](0004-delegated-identity-and-capability-authorization.md), including same-origin session credentials, CSRF on unsafe requests, request identifiers, safe error normalization, and idempotency headers where required. Feature modules wrap typed paths in query and mutation option factories; components do not call `fetch` directly.
 
 Non-breaking additions remain under `v1`. A breaking contract moves to a new API version and a new generated namespace rather than silently replacing v1 types. Generated types are committed so a frontend checkout remains reproducible and contract changes are visible during review.
 
