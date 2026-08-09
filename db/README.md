@@ -8,7 +8,7 @@ The database initializer creates the PostgreSQL schema described in [the ER repo
 - `init/002_reference_data.sql` seeds fuel types, aircraft categories, service types, vehicle types, and worker roles.
 - `init-db.sh` applies both files in order with `psql` error handling enabled.
 
-Airport-specific data is intentionally not seeded. After initialization, configure the airport and then add its parking layout, aircraft catalog, fleet, fuel tanks, and workers.
+Airport-specific data is intentionally not seeded. After initialization, configure the airport and then add its parking layout, aircraft catalog, aircraft operation types, fleet, fuel tanks, and workers. Suggested operation types include commercial, general aviation, medical, and military, with additional values configured as needed.
 
 ## Initialize a new database
 
@@ -34,7 +34,8 @@ The reference-data script is safe to rerun. The schema script is an initial migr
 
 ## Useful derived views
 
-- `fuel_tank_balances` returns current fuel-farm inventory.
-- `fuel_truck_balances` returns current truck inventory.
+- `fuel_tank_balances` returns estimated current fuel-farm inventory.
+- `fuel_truck_balances` returns estimated current truck inventory.
+- Fuel `current_quantity` may be negative or exceed nominal capacity; `available_capacity` remains the arithmetic difference for reconciliation and may also be outside its nominal range.
 - `service_vehicle_current_status` derives whether a vehicle is available, out of service, or at an aircraft.
 - `worker_current_status` derives at-work status and the current task.

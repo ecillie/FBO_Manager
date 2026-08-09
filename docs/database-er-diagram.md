@@ -33,6 +33,13 @@ erDiagram
         text description
     }
 
+    AIRCRAFT_OPERATION_TYPES {
+        string code PK
+        string name UK
+        text description
+        boolean is_active
+    }
+
     AIRCRAFT_MANUFACTURERS {
         string name PK
     }
@@ -49,6 +56,7 @@ erDiagram
         string tail_number PK
         string manufacturer_name FK
         string model_name FK
+        string aircraft_operation_type_code FK
         string fuel_type_code FK
         bigint owner_customer_id FK
         bigint operator_customer_id FK
@@ -206,6 +214,7 @@ erDiagram
     AIRCRAFT_MANUFACTURERS ||--o{ AIRCRAFT_MODELS : makes
     AIRCRAFT_CATEGORIES ||--o{ AIRCRAFT_MODELS : classifies
     AIRCRAFT_MODELS ||--o{ AIRCRAFT : describes
+    AIRCRAFT_OPERATION_TYPES ||--o{ AIRCRAFT : classifies_operation
     FUEL_TYPES ||--o{ AIRCRAFT : requires
 
     PARKING_AREAS o|--o{ PARKING_AREAS : contains

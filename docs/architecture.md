@@ -26,7 +26,7 @@ The following principles have priority when design choices conflict:
 The MVP manages:
 
 - one airport configuration and timezone;
-- customers, aircraft manufacturers, models, physical aircraft, owners, and operators;
+- customers, aircraft manufacturers, models, physical aircraft, operational classifications, owners, and operators;
 - expected, inbound, on-ramp, departed, and cancelled aircraft visits;
 - nested parking areas, parking spots, availability, occupancy, and aircraft-category preferences;
 - aircraft service requests, including fuel-specific quantities and units;
@@ -73,6 +73,8 @@ flowchart LR
 
 FBO staff are the only human users in the MVP. The identity authority and operations services are approved logical boundaries because authentication, external health monitoring, and recoverable daily backups are required capabilities. Issues [#33](https://github.com/ecillie/FBO_Manager/issues/33), [#34](https://github.com/ecillie/FBO_Manager/issues/34), and [#35](https://github.com/ecillie/FBO_Manager/issues/35) will decide whether those capabilities are local or delegated and select their deployment products and protocols.
 
+A planned native mobile application is an additional FBO Manager client rather than a new human actor or external integration. It is outside the MVP and appears in the container view so its future boundary does not distort the MVP system context.
+
 ### 4.2 Container diagram
 
 ```mermaid
@@ -99,6 +101,7 @@ flowchart TB
     end
 
     subgraph notMvp["Not connected in the MVP"]
+        nativeMobile["Native mobile client<br/>[PLANNED FUTURE CLIENT — NOT MVP]<br/>Field workflows; technology selected later<br/>HTTPS and JSON"]
         futureServices["External aviation and business services<br/>[FUTURE INTEGRATIONS — NOT MVP]"]
         releaseOneServices["Multi-zone hosting, database HA, and PITR services<br/>[RELEASE ONE INFRASTRUCTURE — NOT MVP]"]
     end
@@ -111,6 +114,8 @@ flowchart TB
     operationsService -->|"Health probes; HTTPS without protected data"| backend
     backend -->|"Redacted logs; encrypted #35 transport"| operationsService
     database -->|"Daily backups with operational and personal data; encrypted #35 transport"| operationsService
+    nativeMobile <-.->|"Future commands/results with session and operational data; HTTPS/JSON"| backend
+    nativeMobile -.->|"Future sign-in with credentials, tokens, and claims; HTTPS (#33)"| identityService
     backend -.->|"Future aviation/business exchange; no MVP connection"| futureServices
     database -.->|"Release One replication and PITR; no MVP connection"| releaseOneServices
 ```
@@ -120,12 +125,13 @@ flowchart TB
 | Element | Status | Responsibility | Technology choice or constraint | Communication protocols |
 | --- | --- | --- | --- | --- |
 | Browser frontend | MVP container | Present staff workflows, collect user intent, and provide usability validation without becoming a source of operational truth. | Browser application; framework and client-state approach are selected by issue #30. | HTTPS/JSON with the backend; HTTPS with a delegated identity authority if selected. |
-| Backend API | MVP container | Authenticate and authorize requests, enforce business rules, own transactions, and expose bounded current-state queries. | One server application; framework and internal boundaries are selected by issue #31. | HTTPS/JSON with the frontend; PostgreSQL wire protocol over TLS with the database; the identity and operations protocols selected by issues #33 and #35. |
+| Native mobile client | Planned future client; not MVP | Present field-oriented workflows without duplicating authorization, transactions, or other business rules from the backend. | Framework, supported devices, distribution, and any offline model require a separate future decision. | HTTPS/JSON with the same backend API; the authentication flow selected by issue #33. |
+| Backend API | MVP container | Authenticate and authorize requests, enforce business rules, own transactions, and expose bounded current-state queries. | One server application; framework and internal boundaries are selected by issue #31. | HTTPS/JSON with the MVP browser frontend and future native client; PostgreSQL wire protocol over TLS with the database; the identity and operations protocols selected by issues #33 and #35. |
 | PostgreSQL database | MVP container | Retain operational history and enforce relational, uniqueness, transactional, and concurrency invariants. | PostgreSQL with ordered, repository-managed migrations; authoritative operational store. | PostgreSQL wire protocol over TLS with the backend; encrypted backup transport selected by issue #35. |
 | Identity authority | Required MVP logical service; placement pending | Establish a trusted worker identity and session validity without accepting client-supplied authority. | Local or delegated implementation selected by issue #33. | In-process backend contract if local; HTTPS authentication and validation flow if delegated. |
 | Operations services | Required MVP logical services; providers pending | Monitor health, retain redacted structured logs, and create recoverable automated daily backups. | Hosting topology and providers selected by issues #34 and #35; multi-zone HA and PITR remain Release One. | HTTPS health polling plus encrypted log and backup transports selected by issue #35. |
 
-The browser frontend is an untrusted client: it may improve usability with local validation, but the backend repeats all authorization and business-rule checks. The backend is the only container allowed to write operational data, and PostgreSQL remains the authoritative source of truth. There is no direct browser-to-database or browser-to-operations-service connection.
+The browser frontend is an untrusted client: it may improve usability with local validation, but the backend repeats all authorization and business-rule checks. The future native mobile application is also an untrusted client and must reuse the same backend API and server-side enforcement. The backend is the only container allowed to write operational data, and PostgreSQL remains the authoritative source of truth. Neither client connects directly to the database or operations services.
 
 The identity authority is shown as a logical service because issue #33 may place it inside the backend boundary or select a delegated provider. Similarly, the operations box records required MVP capabilities without selecting the hosting, monitoring, logging, or backup products before issues #34 and #35. Any delegated implementation must preserve the labeled trust-boundary protections.
 
@@ -154,7 +160,7 @@ The [database design](database-design.md), [ER diagram](database-er-diagram.md),
 - fuel-service requests contain a compatible fuel type, positive quantity, and unit;
 - a worker and vehicle each have no more than one in-progress task;
 - a worker has no more than one in-progress shift;
-- fuel balances never fall below zero or exceed holder capacity;
+- fuel balances are estimates that may fall below zero or exceed nominal holder capacity and remain visible for reconciliation;
 - each fuel transaction affects exactly one tank or truck;
 - paired transfers commit both ledger entries or neither; and
 - current worker and vehicle status is derived rather than independently edited.
@@ -196,7 +202,7 @@ The following are outside the MVP architecture:
 - multi-airport tenancy or cross-airport data sharing;
 - billing, invoicing, payments, or accounting integrations;
 - external flight tracking, weather, airport, or fuel-vendor integrations;
-- offline-first operation or a native mobile application;
+- a native mobile application or offline operation during the MVP; a future native client will reuse the backend API;
 - analytics and data-warehouse workloads;
 - microservices introduced only for organizational scale;
 - production multi-zone high availability and point-in-time recovery, which remain Release One goals; and

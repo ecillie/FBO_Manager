@@ -24,7 +24,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 ### 3.1 Included capabilities
 
 - Configure one airport and its timezone.
-- Maintain customers, aircraft reference data, and physical aircraft.
+- Maintain customers, aircraft reference data, operational classifications, and physical aircraft.
 - Schedule and operate an aircraft visit from expected arrival through departure or cancellation.
 - Configure nested parking areas and spots and assign an on-ramp aircraft to one available spot.
 - Capture and manage multiple service requests for a visit.
@@ -40,7 +40,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 - Customer billing, invoices, card processing, or accounting exports.
 - Flight-plan, flight-tracking, weather, NOTAM, or fuel-vendor integrations.
 - Customer self-service portals.
-- Offline operation and native mobile clients.
+- Native mobile clients and offline operation during the MVP. A future native client will reuse the backend API and requires a separate architecture decision.
 - Analytics, forecasting, and data-warehouse pipelines.
 - Automated parking or dispatch decisions that cannot be reviewed or overridden by an authorized user.
 - Release One production-resilience features unless separately prioritized.
@@ -49,7 +49,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 
 ### 4.1 Normal path
 
-1. A dispatcher identifies or creates the customer, aircraft model, and physical aircraft.
+1. A dispatcher identifies or creates the customer, aircraft model, and physical aircraft, assigning the aircraft a configured operational classification.
 2. The dispatcher schedules an `EXPECTED` visit with estimated arrival and departure information.
 3. The dispatcher adds zero or more service requests.
 4. The visit becomes `INBOUND` when the aircraft is approaching.
@@ -81,7 +81,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 1. A dispatcher creates a fuel service request with fuel type, positive quantity, and unit.
 2. A task is created for the same aircraft visit and request.
 3. An eligible, on-shift worker and compatible available fuel truck are assigned.
-4. If the truck lacks sufficient inventory, a fueler records a tank-to-truck transfer.
+4. If the truck's estimated inventory indicates that replenishment is needed, a fueler records a tank-to-truck transfer.
 5. The system writes the negative tank entry and positive truck entry atomically with one transfer-group identifier.
 6. The worker starts the task and service request.
 7. Dispensing writes an append-only negative truck entry linked to the fuel service request and acting worker.
@@ -90,7 +90,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 ### 5.2 Required invariants
 
 - The service request, aircraft requirement, truck, tank, and ledger entries use compatible fuel types and units.
-- Inventory never falls below zero or exceeds capacity.
+- Inventory balances are estimates and may fall below zero or exceed nominal capacity; out-of-range values remain visible for reconciliation.
 - A transfer writes both sides or neither side.
 - Ledger entries cannot be updated or deleted.
 - A retry cannot create a duplicate financial or inventory effect.
@@ -98,7 +98,8 @@ An individual worker may hold a configured role that combines responsibilities. 
 
 ### 5.3 Failure behavior
 
-- Insufficient inventory or capacity rejects the complete operation.
+- An out-of-range estimated balance does not reject an otherwise valid movement.
+- A fuel-type or unit mismatch rejects the complete operation.
 - A failed paired transfer leaves both balances unchanged.
 - Corrections use a compensating adjustment with a reason and actor.
 - A network retry returns the original idempotent result or a clear conflict rather than dispensing twice.
@@ -158,7 +159,7 @@ An individual worker may hold a configured role that combines responsibilities. 
 | --- | --- | --- |
 | Parking assignment | Two aircraft directed to one spot. | Transaction, uniqueness constraint, clear conflict, authorized override audit. |
 | Worker/vehicle dispatch | One resource sent to competing tasks. | Transaction, row lock/partial uniqueness, no partial task transition. |
-| Fuel receipt or transfer | Incorrect physical inventory and financial exposure. | Append-only paired ledger, capacity checks, actor and idempotency key. |
+| Fuel receipt or transfer | Incorrect physical inventory estimate and financial exposure. | Append-only paired ledger, visible reconciliation state, actor, and idempotency key. |
 | Fuel dispense | Duplicate or wrong-fuel service. | Compatibility checks, service link, idempotency, immutable evidence. |
 | Inventory adjustment | Concealed loss or accidental balance corruption. | Restricted capability, mandatory reason, compensating entry, audit event. |
 | Visit departure/cancellation | Lost service history or false occupancy. | Explicit state machine, timestamp checks, retained history. |

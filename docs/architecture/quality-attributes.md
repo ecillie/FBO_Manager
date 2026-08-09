@@ -18,7 +18,7 @@ When attributes conflict, the priority order is:
 | --- | --- | --- | --- |
 | Consistency | Two dispatchers assign the same parking spot concurrently. | Exactly one assignment commits; the other receives a conflict with no partial visit change. | PostgreSQL concurrency integration test. |
 | Consistency | Two dispatchers start tasks using the same worker or vehicle. | Exactly one task starts; the other remains unchanged and receives a conflict. | Concurrent service/API test. |
-| Inventory correctness | Concurrent fuel movements target the same holder. | No balance becomes negative or exceeds capacity; paired transfers commit both sides or neither. | Row-locking and rollback integration tests. |
+| Inventory correctness | Concurrent fuel movements target the same holder. | Every accepted movement appears exactly once and paired transfers commit both sides or neither; the estimated balance may be negative or exceed nominal capacity. | Concurrent ledger and rollback integration tests. |
 | Idempotency | A client retries a fuel transfer or dispense after losing the response. | One inventory effect exists for the idempotency key and the retry returns the original outcome or an explicit conflict. | API and ledger-history test. |
 | Read performance | A staff user loads a normal detail or bounded list under expected load. | 95th percentile below 500 ms at 25 concurrent users. | Repeatable load test against representative data. |
 | Write performance | A staff user performs a normal operational write without lock contention. | 95th percentile below 1 second at 25 concurrent users. | Repeatable load test excluding artificial external latency. |
