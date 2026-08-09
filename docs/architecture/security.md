@@ -121,7 +121,7 @@ Rate limits are defense in depth, not authorization. Thresholds are initial valu
 - Secret access is limited to the workload or named operator that needs it. Rotation supports an overlap of current and next key where the protocol permits. A suspected disclosure triggers immediate rotation, session revocation when relevant, audit review, and incident handling.
 - Database accounts are separated into migration, application, backup, and human break-glass responsibilities as described in the [deployment architecture](deployment.md).
 - Customer contact data, aircraft ownership/operator relationships, worker contact data, schedules, attendance, and identity links are personal or sensitive operational data. Authorization, bounded exports, TLS, encrypted storage/backups, and environment isolation protect them.
-- Diagnostic logs use deny-by-default redaction and field allowlists; operations issue [#35](https://github.com/ecillie/FBO_Manager/issues/35) defines their exact fields, transport, and retention. They never contain raw request/response bodies, authorization/cookie headers, OIDC claims, session IDs, secret values, complete database URLs, or unnecessary contact data.
+- Diagnostic logs use the redaction and field allowlists in [operations and recovery](operations-and-recovery.md). They never contain raw request/response bodies, authorization/cookie headers, OIDC claims, session IDs, secret values, complete database URLs, or unnecessary contact data.
 - Non-production environments use synthetic data. Production data is not copied to local or CI. An approved, audited sanitization process is required before any production-derived troubleshooting dataset is used in staging.
 
 ## 7. Security audit events
