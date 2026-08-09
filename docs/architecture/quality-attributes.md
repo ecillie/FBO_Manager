@@ -68,7 +68,7 @@ Tests must report the PostgreSQL version, application version, environment shape
 - Authentication attempts are rate-limited.
 - Sensitive writes carry a request/correlation identifier and acting worker context.
 - Ordinary diagnostic logs are not a substitute for immutable fuel history or required audit events.
-- Security details and the complete threat model are owned by issue #33.
+- Session, capability, browser-control, audit, bootstrap, and threat-model requirements are defined in the [security architecture](security.md) and [ADR 0004](decisions/0004-delegated-identity-and-capability-authorization.md).
 
 ## 6. Acceptance and revision
 

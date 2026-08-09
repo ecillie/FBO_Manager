@@ -24,7 +24,7 @@ The [MVP architecture](../../architecture.md), [workflow definitions](../mvp-sco
 
 The architecture must define an implementation shape before the Backend MVP issues scaffold code. It must prevent controllers from bypassing application services, keep persistence records from leaking into the API or domain, make transaction ownership visible, and allow module-boundary violations to fail automated checks.
 
-[ADR 0003](0003-api-contracts-and-operational-data-flows.md) now defines the exact API contract and operational flows. Issues #12 and #24 implement and publish that contract; issues #33 through #36 still own the identity model, deployment topology, operational controls, and full testing strategy. This decision provides the backend structure into which those decisions fit.
+[ADR 0003](0003-api-contracts-and-operational-data-flows.md) defines the exact API contract and operational flows. Issues #12 and #24 implement and publish that contract. ADRs [0004](0004-delegated-identity-and-capability-authorization.md), [0005](0005-portable-single-region-container-deployment.md), [0006](0006-managed-telemetry-and-tested-backup-recovery.md), and [0007](0007-layered-verification-and-immutable-promotion.md) now define the identity, deployment, operations, and testing/release constraints that fit around these backend boundaries.
 
 ## Decision
 
@@ -120,7 +120,7 @@ Modules may collapse small internal packages into fewer files, but they may not 
 
 | Module | Owns | Does not own |
 | --- | --- | --- |
-| Administration | Singleton airport settings and reusable reference catalogs for fuel, aircraft categories and operation types, services, and vehicle types | Feature-specific operational workflows or the identity/capability model selected by issue #33 |
+| Administration | Singleton airport settings and reusable reference catalogs for fuel, aircraft categories and operation types, services, and vehicle types | Feature-specific operational workflows or the identity/session boundary and capability rules selected by [ADR 0004](0004-delegated-identity-and-capability-authorization.md) |
 | Aircraft | Customers, manufacturers, models, physical aircraft, ownership/operator references, normalization, and deactivation rules | Active visits, parking occupancy, or service execution |
 | Parking | Parking-area hierarchy, spots, category preferences, operational availability, and parking lookup rules | Visit lifecycle or an independently editable occupancy flag |
 | Visits | Aircraft visit lifecycle, arrival/departure timestamps, cancellation, and transactional coordination of parking assignment | Parking master data, aircraft master data, or service/task implementation |
@@ -197,7 +197,7 @@ The persistence rules are:
 
 Flyway SQL migrations under `src/main/resources/db/migration` are the schema source executed by the application and CI. Issue #11 will convert the current `db/init/001_schema.sql` into the initial ordered migration without losing PostgreSQL enums, constraints, partial indexes, triggers, functions, or views. Later applied versioned migrations are immutable; corrections use a new forward migration. ORM metadata is checked against migrations but never generates authoritative DDL.
 
-The PostgreSQL server major version is pinned consistently across local, CI, and shared environments by issues #11 and #34. Integration tests use that PostgreSQL version through Testcontainers rather than an in-memory substitute, because the MVP relies on PostgreSQL-specific locking, partial indexes, recursive queries, enums, triggers, and views.
+PostgreSQL 18 is pinned consistently across local, CI, and shared environments by [ADR 0005](0005-portable-single-region-container-deployment.md). Integration tests use PostgreSQL 18 through Testcontainers rather than an in-memory substitute, because the MVP relies on PostgreSQL-specific locking, partial indexes, recursive queries, enums, triggers, and views.
 
 ### Transaction ownership and unit-of-work behavior
 
@@ -257,7 +257,7 @@ Expected failures use a closed unchecked `DomainException` hierarchy. Each error
 | Dependency unavailable | PostgreSQL or another required approved dependency is unavailable | `503 Service Unavailable` when safe to expose as availability |
 | Unexpected | An unclassified defect or infrastructure failure occurred | `500 Internal Server Error` with a generic message and request ID |
 
-A global `@RestControllerAdvice` maps request-validation failures, domain errors, translated persistence errors, and unexpected failures into the stable error envelope defined by issue #12. Controllers do not catch and reinterpret errors independently. Known PostgreSQL uniqueness, foreign-key, check, deadlock, serialization, and lock-timeout failures are classified using SQLSTATE and named constraints; driver messages are logged only through the redaction policy owned by issue #35 and are never returned to a client.
+A global `@RestControllerAdvice` maps request-validation failures, domain errors, translated persistence errors, and unexpected failures into the stable error envelope defined by issue #12. Controllers do not catch and reinterpret errors independently. Known PostgreSQL uniqueness, foreign-key, check, deadlock, serialization, and lock-timeout failures are classified using SQLSTATE and named constraints; driver messages are handled only through the redaction policy in [ADR 0006](0006-managed-telemetry-and-tested-backup-recovery.md) and are never returned to a client.
 
 Successful application services return immutable Java records or domain-safe value objects describing the authoritative outcome. Controllers map those results to response DTOs. Services do not return `ResponseEntity`, JPA entities, Spring Data `Page` objects across module APIs, or transport-specific error wrappers.
 
@@ -273,8 +273,8 @@ The application uses:
 - a request/correlation ID filter and logging context shared by controllers and error mapping;
 - Spring Boot Actuator liveness that reports process health without requiring PostgreSQL;
 - Actuator readiness that includes database connectivity and the application's ability to serve database-backed requests;
-- structured, redacted logging hooks whose exact fields and transport are owned by issue #35;
-- an authentication/actor-context port whose local or delegated adapter is selected by issue #33; and
+- structured, redacted logging and metric hooks whose fields and transport follow [ADR 0006](0006-managed-telemetry-and-tested-backup-recovery.md);
+- an OIDC/login, opaque-session, and trusted actor-context adapter that follows [ADR 0004](0004-delegated-identity-and-capability-authorization.md); and
 - graceful Spring lifecycle shutdown so the HTTP server stops accepting work and the Hikari pool closes cleanly.
 
 Cross-cutting middleware may establish context and enforce global transport controls, but it does not query feature repositories or implement business authorization decisions. Capability checks that determine whether a command is allowed occur in application services using trusted actor context.
@@ -290,7 +290,7 @@ Cross-cutting middleware may establish context and enforce global transport cont
 | [#7: Service and workflow layer](https://github.com/ecillie/FBO_Manager/issues/7) | Implement transactional application services, state machines, capability inputs, cross-module orchestration through named APIs, deterministic locking, idempotent sensitive commands, timezone interpretation, and typed domain errors/results. |
 | [#12: API conventions and errors](https://github.com/ecillie/FBO_Manager/issues/12) | Implement the `/api/v1` JSON, envelope, validation, pagination, request-ID, idempotency-header, CORS/body-limit, and centralized error requirements defined by [ADR 0003](0003-api-contracts-and-operational-data-flows.md). |
 
-Issues #24, #25, #26, and #27 build on the same choices for OpenAPI generation, automated tests, CI, and operating documentation. ADR 0003 adds API and flow constraints; issues #33 through #36 may add security, deployment, observability, or release constraints, but must preserve the dependency and transaction directions unless they supersede this ADR.
+Issues #24, #25, #26, and #27 build on the same choices for OpenAPI generation, automated tests, CI, and operating documentation. ADRs 0003 through 0007 add API/flow, security, deployment, observability/recovery, and release constraints. They preserve this ADR's dependency and transaction directions; a conflicting future design must supersede the affected decision explicitly.
 
 ## Consequences
 
