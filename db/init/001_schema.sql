@@ -116,6 +116,22 @@ CREATE TABLE aircraft_categories (
         CHECK (name = btrim(name) AND name <> '')
 );
 
+CREATE TABLE aircraft_operation_types (
+    code VARCHAR(32) PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT aircraft_operation_types_code_format_ck
+        CHECK (code ~ '^[A-Z][A-Z0-9_]{0,31}$'),
+    CONSTRAINT aircraft_operation_types_name_ck
+        CHECK (name = btrim(name) AND name <> '')
+);
+
+CREATE UNIQUE INDEX aircraft_operation_types_name_ci_uq
+    ON aircraft_operation_types (lower(name));
+
 CREATE TABLE aircraft_manufacturers (
     name VARCHAR(120) PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -156,6 +172,7 @@ CREATE TABLE aircraft (
     tail_number VARCHAR(12) PRIMARY KEY,
     manufacturer_name VARCHAR(120) NOT NULL,
     model_name VARCHAR(120) NOT NULL,
+    aircraft_operation_type_code VARCHAR(32) NOT NULL,
     fuel_type_code VARCHAR(32) NOT NULL,
     owner_customer_id BIGINT,
     operator_customer_id BIGINT,
@@ -166,6 +183,11 @@ CREATE TABLE aircraft (
     CONSTRAINT aircraft_model_fk
         FOREIGN KEY (manufacturer_name, model_name)
         REFERENCES aircraft_models (manufacturer_name, model_name)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT aircraft_operation_type_fk
+        FOREIGN KEY (aircraft_operation_type_code)
+        REFERENCES aircraft_operation_types (code)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
     CONSTRAINT aircraft_fuel_type_fk
@@ -184,6 +206,9 @@ CREATE TABLE aircraft (
     CONSTRAINT aircraft_tail_number_format_ck
         CHECK (tail_number ~ '^[A-Z0-9][A-Z0-9-]{1,11}$')
 );
+
+CREATE INDEX aircraft_operation_type_idx
+    ON aircraft (aircraft_operation_type_code);
 
 CREATE TABLE parking_areas (
     area_code VARCHAR(32) PRIMARY KEY,
@@ -966,15 +991,13 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     holder_fuel_type VARCHAR(32);
-    holder_capacity NUMERIC(14, 3);
     holder_unit VARCHAR(32);
-    current_quantity NUMERIC(14, 3);
     request_fuel_type VARCHAR(32);
     request_is_fuel_service BOOLEAN;
 BEGIN
     IF NEW.fuel_tank_name IS NOT NULL THEN
-        SELECT fuel_type_code, capacity, quantity_unit
-          INTO holder_fuel_type, holder_capacity, holder_unit
+        SELECT fuel_type_code, quantity_unit
+          INTO holder_fuel_type, holder_unit
           FROM fuel_tanks
          WHERE name = NEW.fuel_tank_name
          FOR UPDATE;
@@ -982,14 +1005,9 @@ BEGIN
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Fuel tank % does not exist', NEW.fuel_tank_name;
         END IF;
-
-        SELECT COALESCE(SUM(quantity_delta), 0)
-          INTO current_quantity
-          FROM fuel_inventory_transactions
-         WHERE fuel_tank_name = NEW.fuel_tank_name;
     ELSE
-        SELECT fuel_type_code, capacity, quantity_unit
-          INTO holder_fuel_type, holder_capacity, holder_unit
+        SELECT fuel_type_code, quantity_unit
+          INTO holder_fuel_type, holder_unit
           FROM fuel_trucks
          WHERE service_vehicle_identifier = NEW.fuel_truck_identifier
          FOR UPDATE;
@@ -997,11 +1015,6 @@ BEGIN
         IF NOT FOUND THEN
             RAISE EXCEPTION 'Fuel truck % does not exist', NEW.fuel_truck_identifier;
         END IF;
-
-        SELECT COALESCE(SUM(quantity_delta), 0)
-          INTO current_quantity
-          FROM fuel_inventory_transactions
-         WHERE fuel_truck_identifier = NEW.fuel_truck_identifier;
     END IF;
 
     IF NEW.fuel_type_code <> holder_fuel_type THEN
@@ -1012,14 +1025,8 @@ BEGIN
         RAISE EXCEPTION 'Transaction unit must match its tank or truck';
     END IF;
 
-    IF current_quantity + NEW.quantity_delta < 0 THEN
-        RAISE EXCEPTION 'Fuel inventory cannot fall below zero';
-    END IF;
-
-    IF current_quantity + NEW.quantity_delta > holder_capacity THEN
-        RAISE EXCEPTION 'Fuel inventory cannot exceed capacity';
-    END IF;
-
+    -- Ledger balances are operational estimates. Negative and above-capacity
+    -- totals remain visible for reconciliation and are not rejected here.
     IF NEW.service_request_id IS NOT NULL THEN
         SELECT request.fuel_type_code, service_type.is_fuel_service
           INTO request_fuel_type, request_is_fuel_service
@@ -1076,6 +1083,7 @@ BEGIN
         'customers',
         'fuel_types',
         'aircraft_categories',
+        'aircraft_operation_types',
         'aircraft_manufacturers',
         'aircraft_models',
         'aircraft',

@@ -6,7 +6,7 @@ This report converts the MVP requirements into a logical relational data model f
 
 The MVP covers:
 
-- aircraft, owners, operators, makes, models, and fuel requirements;
+- aircraft, owners, operators, makes, models, operational classifications, and fuel requirements;
 - inbound, on-ramp, departed, and cancelled aircraft visits;
 - nested parking areas, parking spots, and aircraft-category preferences;
 - requested aircraft services, including fuel quantities and types;
@@ -105,6 +105,17 @@ Broad aircraft classifications used by aircraft models and parking preferences, 
 | `name` | Required | Display name. |
 | `description` | Optional | Category guidance. |
 
+#### `aircraft_operation_types`
+
+Configurable classifications for how a physical aircraft normally operates. Suggested initial codes include `COMMERCIAL`, `GENERAL_AVIATION`, `MEDICAL`, and `MILITARY`; administrators may add other airport-relevant values without a schema change. This classification is independent of the model's physical aircraft category.
+
+| Attribute | Requirement | Description |
+| --- | --- | --- |
+| `code` | PK | Stable normalized operation-type code. |
+| `name` | Required, case-insensitively unique | Display name. |
+| `description` | Optional | Guidance for assigning the classification. |
+| `is_active` | Required | Whether the operation type can be selected for new or edited aircraft. |
+
 #### `aircraft_manufacturers`
 
 | Attribute | Requirement | Description |
@@ -134,6 +145,7 @@ Represents a physical aircraft independently of any individual visit to the FBO.
 | `tail_number` | PK | Normalized uppercase registration used as the MVP aircraft identifier. |
 | `manufacturer_name` | Composite FK, required | With `model_name`, references `aircraft_models`. |
 | `model_name` | Composite FK, required | With `manufacturer_name`, references `aircraft_models`. |
+| `aircraft_operation_type_code` | FK, required | References `aircraft_operation_types.code`; identifies the aircraft's normal operation as commercial, general aviation, medical, military, or another configured value. |
 | `fuel_type_code` | FK, required | References `fuel_types.code`. |
 | `owner_customer_id` | FK, optional | Current owner; references `customers.customer_id`. |
 | `operator_customer_id` | FK, optional | Current operator; references `customers.customer_id`. |
@@ -276,10 +288,10 @@ One-to-zero-or-one subtype of `service_vehicles` containing fields that apply on
 | --- | --- | --- |
 | `service_vehicle_identifier` | PK/FK | References `service_vehicles.identifier`. |
 | `fuel_type_code` | FK, required | References `fuel_types.code`. |
-| `capacity` | Required | Maximum truck capacity; must be positive. |
+| `capacity` | Required | Positive nominal truck capacity used as an operational reference, not a hard ledger bound. |
 | `quantity_unit` | Required | Unit used for capacity and inventory. |
 
-Current truck quantity is derived from its fuel inventory transactions.
+Estimated current truck quantity is derived from its fuel inventory transactions.
 
 ### 3.6 Fuel farm and inventory
 
@@ -289,12 +301,12 @@ Current truck quantity is derived from its fuel inventory transactions.
 | --- | --- | --- |
 | `name` | PK | Stable airport-visible tank name or tank number. |
 | `fuel_type_code` | FK, required | References `fuel_types.code`. |
-| `capacity` | Required | Maximum tank capacity; must be positive. |
+| `capacity` | Required | Positive nominal tank capacity used as an operational reference, not a hard ledger bound. |
 | `quantity_unit` | Required | Unit used for capacity and inventory. |
 | `notes` | Optional | Tank notes. |
 | `is_active` | Required | Whether the tank remains in use. |
 
-Current tank quantity is derived from its fuel inventory transactions.
+Estimated current tank quantity is derived from its fuel inventory transactions.
 
 #### `fuel_inventory_transactions`
 
@@ -315,7 +327,7 @@ Append-only ledger for fuel entering or leaving a tank or fuel truck.
 | `occurred_at` | Required | Time of the inventory movement. |
 | `notes` | Optional | Explanation, reference, or adjustment reason. |
 
-Exactly one of `fuel_tank_name` and `fuel_truck_identifier` must be present on each transaction. Current inventory is the sum of `quantity_delta` for the tank or truck. Inventory cannot fall below zero or exceed capacity.
+Exactly one of `fuel_tank_name` and `fuel_truck_identifier` must be present on each transaction. Current inventory is the sum of `quantity_delta` for the tank or truck. This derived balance is an estimate and may be negative or exceed the holder's nominal capacity; those values remain visible for reconciliation rather than causing a transaction to be rejected.
 
 ### 3.7 Workforce and tasks
 
@@ -383,8 +395,9 @@ An airport-wide task may omit the aircraft and service references. When `service
 | --- | --- | --- | --- |
 | `customers` | `aircraft` | 0..1 to many, by role | A customer may own or operate many aircraft; each aircraft has at most one current owner and operator. |
 | `aircraft_manufacturers` | `aircraft_models` | one-to-many | A manufacturer defines many models. |
-| `aircraft_categories` | `aircraft_models` | one-to-many | Each model belongs to one operational category. |
+| `aircraft_categories` | `aircraft_models` | one-to-many | Each model belongs to one physical aircraft category. |
 | `aircraft_models` | `aircraft` | one-to-many | Many physical aircraft can share a model. |
+| `aircraft_operation_types` | `aircraft` | one-to-many | Each physical aircraft has one configured operational classification. |
 | `fuel_types` | aircraft and fuel entities | one-to-many | One controlled fuel type is reused consistently. |
 | `parking_areas` | `parking_areas` | optional-parent hierarchy | An area may contain nested areas. |
 | `parking_areas` | `parking_spots` | one-to-many | A spot belongs to exactly one area. |
@@ -413,12 +426,13 @@ An airport-wide task may omit the aircraft and service references. When `service
 9. Fuel inventory transactions are append-only. Corrections use a compensating `ADJUSTMENT` record.
 10. A fuel transaction references exactly one inventory holder: a tank or a fuel truck.
 11. Fuel type and unit must agree with the referenced tank or truck.
-12. Derived inventory must remain between zero and the holder's capacity.
+12. Derived inventory is an operational estimate. It may be negative or exceed the holder's nominal capacity and must remain visible for reconciliation.
 13. Current vehicle location is derived from its `IN_PROGRESS` task and related aircraft visit.
 14. Worker at-work status is derived from an open shift; current task is derived from an `IN_PROGRESS` task.
 15. A worker and vehicle each have at most one `IN_PROGRESS` task at a time.
 16. Historical visits, completed services, completed tasks, shifts, and fuel transactions are retained.
 17. Natural keys are treated as immutable after creation. Correcting one requires a controlled transaction that cascades the change to every foreign key.
+18. Every aircraft has one active-at-selection operation type independent of its model's physical category.
 
 ## 6. State transitions
 
