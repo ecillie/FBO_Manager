@@ -22,7 +22,7 @@ When attributes conflict, the priority order is:
 | Idempotency | A client retries a fuel transfer or dispense after losing the response. | One inventory effect exists for the idempotency key and the retry returns the original outcome or an explicit conflict. | API and ledger-history test. |
 | Read performance | A staff user loads a normal detail or bounded list under expected load. | 95th percentile below 500 ms at 25 concurrent users. | Repeatable load test against representative data. |
 | Write performance | A staff user performs a normal operational write without lock contention. | 95th percentile below 1 second at 25 concurrent users. | Repeatable load test excluding artificial external latency. |
-| Dashboard freshness | A ramp-board user monitors current operations. | Polling baseline reflects committed state within 15 seconds; issue #32 may define a tighter push model. | End-to-end refresh test. |
+| Dashboard freshness | A ramp-board user monitors current operations. | The [ADR 0003](decisions/0003-api-contracts-and-operational-data-flows.md) polling baseline reflects committed state within 15 seconds. | End-to-end refresh test. |
 | Availability | Staff use the shared MVP environment throughout airport operations. | 99.5% monthly availability excluding announced maintenance. | External health monitoring and monthly review. |
 | Graceful failure | PostgreSQL is unavailable during a write. | The request fails safely, returns a traceable service error, and creates no partial application state. | Dependency-failure integration test. |
 | Recovery | The primary MVP database becomes unrecoverable. | Restore service within four hours with no more than 24 hours of committed data loss. | Documented restore exercise using an automated daily backup. |
@@ -53,7 +53,7 @@ Tests must report the PostgreSQL version, application version, environment shape
 - Critical multi-record writes use a database transaction owned by the application service.
 - Expected contention produces a domain conflict, not an unhandled server error.
 - The application does not claim success until the authoritative transaction commits.
-- Retried sensitive writes use an idempotency mechanism defined by issue #32.
+- Retried sensitive writes use the persisted key and replay mechanism defined by [ADR 0003](decisions/0003-api-contracts-and-operational-data-flows.md).
 - Health reporting separates process liveness from readiness to serve database-backed requests.
 - Shutdown stops accepting new work, completes or cancels bounded in-flight work, and closes database connections.
 - Hosted connections use TLS.

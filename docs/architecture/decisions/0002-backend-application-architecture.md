@@ -24,7 +24,7 @@ The [MVP architecture](../../architecture.md), [workflow definitions](../mvp-sco
 
 The architecture must define an implementation shape before the Backend MVP issues scaffold code. It must prevent controllers from bypassing application services, keep persistence records from leaking into the API or domain, make transaction ownership visible, and allow module-boundary violations to fail automated checks.
 
-Issues #12, #24, #32, #33, #34, #35, and #36 still own the exact API contract, OpenAPI publication, identity model, deployment topology, operational controls, and full testing strategy. This decision provides the backend structure into which those decisions will fit.
+[ADR 0003](0003-api-contracts-and-operational-data-flows.md) now defines the exact API contract and operational flows. Issues #12 and #24 implement and publish that contract; issues #33 through #36 still own the identity model, deployment topology, operational controls, and full testing strategy. This decision provides the backend structure into which those decisions fit.
 
 ## Decision
 
@@ -288,9 +288,9 @@ Cross-cutting middleware may establish context and enforce global transport cont
 | [#11: Migrations and data access](https://github.com/ecillie/FBO_Manager/issues/11) | Convert the schema to ordered Flyway SQL migrations, configure PostgreSQL JDBC and HikariCP, disable schema generation, validate mappings, separate migration/application permissions or document the compromise, and establish PostgreSQL Testcontainers. |
 | [#8: Model and repository layer](https://github.com/ecillie/FBO_Manager/issues/8) | Implement framework-free domain types, internal JPA records, repository ports/adapters, `JdbcClient` read projections, exact decimal/time/enum/composite-key mapping, bounded queries, lock primitives, constraint translation, and N+1-safe loading. |
 | [#7: Service and workflow layer](https://github.com/ecillie/FBO_Manager/issues/7) | Implement transactional application services, state machines, capability inputs, cross-module orchestration through named APIs, deterministic locking, idempotent sensitive commands, timezone interpretation, and typed domain errors/results. |
-| [#12: API conventions and errors](https://github.com/ecillie/FBO_Manager/issues/12) | Implement versioned Spring MVC controllers, Jakarta-validated request DTOs, response DTOs, bounded pagination, request IDs, CORS/body limits, and one `@RestControllerAdvice` that maps the error hierarchy without leaking persistence details. |
+| [#12: API conventions and errors](https://github.com/ecillie/FBO_Manager/issues/12) | Implement the `/api/v1` JSON, envelope, validation, pagination, request-ID, idempotency-header, CORS/body-limit, and centralized error requirements defined by [ADR 0003](0003-api-contracts-and-operational-data-flows.md). |
 
-Issues #24, #25, #26, and #27 build on the same choices for OpenAPI generation, automated tests, CI, and operating documentation. Issues #32 through #36 may add API, security, deployment, observability, or release constraints, but must preserve the dependency and transaction directions unless they supersede this ADR.
+Issues #24, #25, #26, and #27 build on the same choices for OpenAPI generation, automated tests, CI, and operating documentation. ADR 0003 adds API and flow constraints; issues #33 through #36 may add security, deployment, observability, or release constraints, but must preserve the dependency and transaction directions unless they supersede this ADR.
 
 ## Consequences
 
