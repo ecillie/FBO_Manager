@@ -4,7 +4,7 @@
 
 This document is the entry point for the FBO Manager MVP architecture. It records the constraints and priorities that guide the more detailed frontend, backend, API, security, deployment, and testing decisions.
 
-The current baseline covers the architecture drivers from GitHub issue [#28](https://github.com/ecillie/FBO_Manager/issues/28) and the system context and container boundaries from issue [#29](https://github.com/ecillie/FBO_Manager/issues/29). Technology selections and detailed design decisions will be added by the remaining architecture issues under the [MVP architecture epic](https://github.com/ecillie/FBO_Manager/issues/5).
+The current baseline covers the architecture drivers from GitHub issue [#28](https://github.com/ecillie/FBO_Manager/issues/28), the system context and container boundaries from issue [#29](https://github.com/ecillie/FBO_Manager/issues/29), and the frontend application architecture from issue [#30](https://github.com/ecillie/FBO_Manager/issues/30). Backend, API, security, deployment, operations, and release decisions will be added by the remaining architecture issues under the [MVP architecture epic](https://github.com/ecillie/FBO_Manager/issues/5).
 
 The architecture is intentionally optimized for a single FBO operating at one airport. It is not a premature multi-tenant platform design.
 
@@ -81,7 +81,7 @@ A planned native mobile application is an additional FBO Manager client rather t
 flowchart TB
     subgraph deviceBoundary["User device / untrusted client boundary"]
         staff["Authenticated FBO user"]
-        frontend["Browser frontend<br/>[MVP CONTAINER]"]
+        frontend["Browser frontend<br/>[MVP CONTAINER]<br/>React and TypeScript SPA"]
     end
 
     subgraph applicationBoundary["FBO Manager application trust boundary"]
@@ -124,7 +124,7 @@ flowchart TB
 
 | Element | Status | Responsibility | Technology choice or constraint | Communication protocols |
 | --- | --- | --- | --- | --- |
-| Browser frontend | MVP container | Present staff workflows, collect user intent, and provide usability validation without becoming a source of operational truth. | Browser application; framework and client-state approach are selected by issue #30. | HTTPS/JSON with the backend; HTTPS with a delegated identity authority if selected. |
+| Browser frontend | MVP container | Present staff workflows, collect user intent, and provide usability validation without becoming a source of operational truth. | React 19.2 and TypeScript 6 SPA built with Vite 8.1; React Router 8, TanStack Query 5, React Hook Form/Zod, and Material UI 9. See [ADR 0001](architecture/decisions/0001-frontend-application-architecture.md). | HTTPS/JSON with the backend; HTTPS with a delegated identity authority if selected. |
 | Native mobile client | Planned future client; not MVP | Present field-oriented workflows without duplicating authorization, transactions, or other business rules from the backend. | Framework, supported devices, distribution, and any offline model require a separate future decision. | HTTPS/JSON with the same backend API; the authentication flow selected by issue #33. |
 | Backend API | MVP container | Authenticate and authorize requests, enforce business rules, own transactions, and expose bounded current-state queries. | One server application; framework and internal boundaries are selected by issue #31. | HTTPS/JSON with the MVP browser frontend and future native client; PostgreSQL wire protocol over TLS with the database; the identity and operations protocols selected by issues #33 and #35. |
 | PostgreSQL database | MVP container | Retain operational history and enforce relational, uniqueness, transactional, and concurrency invariants. | PostgreSQL with ordered, repository-managed migrations; authoritative operational store. | PostgreSQL wire protocol over TLS with the backend; encrypted backup transport selected by issue #35. |
@@ -213,7 +213,7 @@ The following are outside the MVP architecture:
 | Decision area | Tracking issue | Expected artifact |
 | --- | --- | --- |
 | Context and containers | #29 | System-context and container diagrams |
-| Frontend structure | #30 | Frontend architecture decision record |
+| Frontend structure | #30 | [ADR 0001: Frontend application architecture and state boundaries](architecture/decisions/0001-frontend-application-architecture.md) |
 | Backend boundaries | #31 | Backend architecture decision record |
 | API and data flows | #32 | API conventions and sequence diagrams |
 | Security | #33 | Identity decision, capability matrix, and threat model |
