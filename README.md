@@ -8,7 +8,9 @@ FBO_Manager is a full-stack airport operations platform that helps FBOs manage a
 - `FBOProd` is the default, production-record branch; routine feature work does not merge directly into it.
 - Short-lived ticket branches use `<issue-number>-<short-description>`, branch from `FBODev`, and are deleted after merge.
 
-The release candidate is built once, verified in NonProd, merged to `FBOProd`, tagged `v1.0.0`, and deployed to production using the exact candidate artifact digests. See the [testing, CI/CD, and release strategy](docs/architecture/testing-and-release.md) for the complete branch, hotfix, and promotion policy.
+Because GitHub only applies closing keywords when changes reach the default branch, a ticket PR merged to `FBODev` does not automatically close its issue. The developer or #26 automation closes the issue with merge evidence and marks its project item Done after verifying the `FBODev` result.
+
+The release candidate is built once, verified in NonProd, merged to `FBOProd`, tagged `v1.0.0`, and deployed to production using the exact candidate artifact digests. See the [testing, CI/CD, and release strategy](docs/architecture/testing-and-release.md) for the complete branch, issue-lifecycle, hotfix, and promotion policy.
 
 ## Project documentation
 

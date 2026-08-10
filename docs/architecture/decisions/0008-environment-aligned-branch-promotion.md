@@ -25,6 +25,8 @@ The single-developer constraint also makes a mandatory second-developer pull-req
 
 Ordinary work starts from current `FBODev` and uses a short-lived branch named `<issue-number>-<short-description>`, for example `10-bootstrap-backend`. Ticket pull requests explicitly target `FBODev`; `FBOProd` being the GitHub default must not silently change the base. Ticket branches use squash merge and are deleted after merge.
 
+Because GitHub closing keywords take effect only when a pull request reaches the default branch, a merge to `FBODev` does not automatically close its linked issue. After verifying the integration result, the developer or issue #26 automation records merge evidence, closes the implementation issue, and marks its project item Done. Release epics separately track whether that code has promoted to production.
+
 `FBODev` is the only continuing integration line. It deploys to the development environment after its required checks pass. Neither the current release branch nor `FBOProd` receives routine feature pull requests.
 
 ### Release candidate
@@ -64,6 +66,7 @@ An independent code approval is requested when a qualified reviewer is available
 ### Costs and risks
 
 - Pull requests must explicitly select `FBODev`; the GitHub default points to `FBOProd` for production-record reasons.
+- Issue closure after `FBODev` merge needs an explicit manual or automated step because GitHub does not apply default-branch closing keywords there.
 - Release and hotfix fixes must be forward-ported deliberately, creating a small bookkeeping cost.
 - Branches can diverge if feature work is allowed onto the release/production lines or fixes are not forward-ported.
 - Solo self-review has less defect-detection independence, so automated checks and production approval carry more weight until another qualified contributor exists.
