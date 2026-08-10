@@ -67,6 +67,8 @@ The arrows show the default solo execution order. Rows and issue groups below or
 
 The MVP release is tagged `v1.0.0` on `FBOProd`. Future candidates use `Release-<version>` and matching `v<version>` tags. A release fix is forward-ported to `FBODev`; a production hotfix starts from `FBOProd` and is forward-ported to both `FBODev` and any active release branch. Branch promotion never substitutes for environment approval, migration checks, or exact-digest artifact promotion.
 
+GitHub closing keywords do not close an issue when its pull request merges to non-default `FBODev`. After verifying the merge, manually close the implementation issue with PR/commit evidence and mark its project item Done until #26 supplies equivalent automation. Issue closure still means the Definition of Done is satisfied; it is not delayed until the code eventually promotes to `FBOProd`.
+
 ### Gate 0 — Architecture approved
 
 **Issues:** #5 and completed #28–#37.

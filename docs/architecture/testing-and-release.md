@@ -94,7 +94,13 @@ The repository uses three delivery roles:
 
 A production hotfix starts from `FBOProd`, returns through a protected pull request, receives a patch tag, and is forward-ported to `FBODev` and any active release branch. Hotfix completion includes those forward ports so future development cannot regress the correction.
 
-### 6.1 Required pull-request checks
+### 6.1 Issue lifecycle on a non-default integration branch
+
+GitHub applies pull-request closing keywords only when the change reaches the default branch. Since the default is `FBOProd`, `Closes #N` on an ordinary PR to `FBODev` does not close issue `N`. After the squash merge and `FBODev` verification, the developer records the PR and merge commit on the issue, closes it as completed, and marks the project item Done. Issue #26 may automate those same evidence-based steps for merged `FBODev` PRs.
+
+Do not leave an implementation issue open until production solely because of this GitHub behavior. The delivery/release epics and release manifest track promotion separately. Conversely, do not close an issue merely because its branch merged when its acceptance criteria or required evidence remain incomplete.
+
+### 6.2 Required pull-request checks
 
 | Gate | Required behavior |
 | --- | --- |
