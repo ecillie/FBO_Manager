@@ -3,6 +3,7 @@ FBO_Manager is a full-stack airport operations platform that helps FBOs manage a
 
 ## Project documentation
 
+- [MVP delivery plan](docs/mvp-delivery-plan.md)
 - [MVP architecture](docs/architecture.md)
 - [MVP scope, actors, and workflows](docs/architecture/mvp-scope-and-workflows.md)
 - [MVP quality attributes](docs/architecture/quality-attributes.md)
