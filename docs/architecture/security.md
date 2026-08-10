@@ -122,7 +122,7 @@ Rate limits are defense in depth, not authorization. Thresholds are initial valu
 - Database accounts are separated into migration, application, backup, and human break-glass responsibilities as described in the [deployment architecture](deployment.md).
 - Customer contact data, aircraft ownership/operator relationships, worker contact data, schedules, attendance, and identity links are personal or sensitive operational data. Authorization, bounded exports, TLS, encrypted storage/backups, and environment isolation protect them.
 - Diagnostic logs use the redaction and field allowlists in [operations and recovery](operations-and-recovery.md). They never contain raw request/response bodies, authorization/cookie headers, OIDC claims, session IDs, secret values, complete database URLs, or unnecessary contact data.
-- Non-production environments use synthetic data. Production data is not copied to local or CI. An approved, audited sanitization process is required before any production-derived troubleshooting dataset is used in staging.
+- Non-production environments use synthetic data. Production data is not copied to local, CI, or Development. An approved, audited sanitization process is required before any production-derived troubleshooting dataset is used in NonProd.
 
 ## 7. Security audit events
 

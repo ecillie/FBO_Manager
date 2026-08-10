@@ -2,7 +2,7 @@
 
 ## 1. Purpose and scope
 
-This document defines how the FBO Manager MVP is built, configured, migrated, and run for GitHub issue [#34](https://github.com/ecillie/FBO_Manager/issues/34). The controlling decision is [ADR 0005](decisions/0005-portable-single-region-container-deployment.md). Backend foundation issue [#10](https://github.com/ecillie/FBO_Manager/issues/10), migration issue [#11](https://github.com/ecillie/FBO_Manager/issues/11), and CI issue [#26](https://github.com/ecillie/FBO_Manager/issues/26) implement these requirements.
+This document defines how the FBO Manager MVP is built, configured, migrated, and run for GitHub issue [#34](https://github.com/ecillie/FBO_Manager/issues/34). [ADR 0005](decisions/0005-portable-single-region-container-deployment.md) controls the deployment topology and [ADR 0008](decisions/0008-environment-aligned-branch-promotion.md) controls the source-branch/environment promotion path. Backend foundation issue [#10](https://github.com/ecillie/FBO_Manager/issues/10), migration issue [#11](https://github.com/ecillie/FBO_Manager/issues/11), and CI issue [#26](https://github.com/ecillie/FBO_Manager/issues/26) implement these requirements.
 
 The initial shared topology uses a single-region managed container service, a separately managed PostgreSQL database, and platform-managed DNS, TLS, secrets, logs, metrics, and backups. The architecture specifies provider-neutral capabilities rather than coupling the application to one cloud vendor. Local development uses containers; CI uses ephemeral containers and services.
 
@@ -11,11 +11,12 @@ The initial shared topology uses a single-region managed container service, a se
 | Environment | Purpose and data | Boundary and access | Lifecycle |
 | --- | --- | --- | --- |
 | Local | Developer implementation and tests using synthetic data only | Developer workstation; loopback-bound frontend/backend and a containerized PostgreSQL 18 instance. No shared credentials or inbound Internet exposure. | Recreated freely from migrations and deterministic seeds. |
-| CI | Pull-request and release verification using generated fixtures only | Ephemeral isolated runner/job network. Unique database per job; no route to staging/production data or secrets. Workflow token has minimum read permissions unless a publish job needs narrowly scoped writes. | Destroyed after the job; test reports and approved artifacts are retained by CI policy. |
-| Staging / shared MVP | Stakeholder acceptance, operational rehearsal, migration and restore verification with synthetic or explicitly sanitized data | Dedicated platform project/account, public HTTPS application endpoint, private database, separate OIDC client and secrets. Named contributors and reviewers only. | Long-lived but replaceable from artifacts, configuration, migrations, and backups. |
-| Production / pilot | Live single-airport operations | Separate project/account, DNS zone/records, OIDC client, database, secret set, telemetry, backup set, and access group. Only approved operators can deploy or access environment controls. | Changes arrive only through artifact promotion and approved release workflow. |
+| CI | Pull-request and release verification using generated fixtures only | Ephemeral isolated runner/job network. Unique database per job; no route to Development, NonProd, or production data/secrets. Workflow token has minimum read permissions unless a publish job needs narrowly scoped writes. | Destroyed after the job; test reports and approved artifacts are retained by CI policy. |
+| Development (`FBODev`) | Shared integration verification from the protected `FBODev` branch using synthetic data | Non-production platform project/account, private PostgreSQL, development OIDC client/secrets, and no production data or credentials. | Updated after successful integration checks; replaceable from migrations and development artifacts. |
+| NonProd (`Release-<version>`) | Stakeholder acceptance, operational rehearsal, migration and restore verification for the frozen release candidate using synthetic or explicitly sanitized data | Dedicated non-production project/account, public HTTPS application endpoint, private database, separate OIDC client and secrets. Named contributors and reviewers only. | Updated only from signed release-candidate artifacts; long-lived environment, replaceable deployment. |
+| Production / pilot (`FBOProd`) | Live single-airport operations from a tagged accepted release | Separate project/account, DNS zone/records, OIDC client, database, secret set, telemetry, backup set, and access group. Only approved operators can deploy or access environment controls. | Changes arrive only through exact-digest artifact promotion and the approved release/hotfix workflow. |
 
-Staging and production never share a database, database account, OIDC client, signing/hash secret, backup destination, or telemetry access policy. Production data is never copied to local or CI. A production-derived staging dataset requires an approved, logged sanitization process that removes contact, identity, and other sensitive fields.
+Development, NonProd, and production never share a database, database account, OIDC client, signing/hash secret, backup destination, or telemetry access policy. Production data is never copied to local, CI, or Development. A production-derived NonProd dataset requires an approved, logged sanitization process that removes contact, identity, and other sensitive fields.
 
 ## 3. Supported runtime baseline
 
@@ -25,7 +26,7 @@ The repository pins exact image digests, Maven/npm dependencies, plugins, and lo
 | --- | --- | --- |
 | Backend build/runtime | [Java 25 LTS](https://www.oracle.com/java/technologies/java-se-support-roadmap.html) and [Spring Boot 4.1](https://spring.io/projects/spring-boot/) | Build and run on the same Java major. Use a maintained OpenJDK distribution and a minimal non-root runtime image. Patch releases are applied through normal dependency/image maintenance. |
 | Frontend build | [Node.js 24 LTS](https://nodejs.org/en/about/previous-releases) | Node is a build/test tool only; it is not required in the production static-web image. The package-manager version is declared by the repository and installs from a frozen lockfile. |
-| Database | [PostgreSQL 18](https://www.postgresql.org/support/versioning/) | Local, CI, staging, and production use major 18. Run the current supported minor available from the approved distribution/provider. Major upgrades require backup/restore rehearsal, migration/integration tests, and an architecture/release review. |
+| Database | [PostgreSQL 18](https://www.postgresql.org/support/versioning/) | Local, CI, Development, NonProd, and production use major 18. Run the current supported minor available from the approved distribution/provider. Major upgrades require backup/restore rehearsal, migration/integration tests, and an architecture/release review. |
 | Container format | OCI image and immutable digest | Linux `amd64` is the minimum target; add `arm64` only when CI builds and tests a multi-platform image. Do not depend on mutable deployment tags. |
 
 PostgreSQL 18 is selected rather than the PostgreSQL 19 pre-release line. Java 25 and Node 24 are LTS baselines. Runtime and database line changes update the relevant ADRs and compatibility matrix before promotion.
@@ -111,9 +112,9 @@ All shared-environment PostgreSQL connections require TLS with hostname and cert
 
 Flyway owns ordered, immutable production migrations under the backend repository convention selected by issue #11. Repeatable reference-data changes must be idempotent; a changed versioned migration is a CI and startup failure once released.
 
-A staging or production deployment follows this order:
+A NonProd or production deployment follows this order:
 
-1. CI has built, tested, scanned, signed, and published immutable `fbo-web` and `fbo-api` digests plus SBOM/provenance; staging has already run them.
+1. CI has built, tested, scanned, signed, and published immutable `fbo-web` and `fbo-api` candidate digests plus SBOM/provenance; production promotion requires that NonProd has already run those exact digests.
 2. The releaser verifies a recent successful backup and current health, records the release and database version, and pauses if the recovery preconditions fail.
 3. Run `fbo-migrate` from the candidate API digest with the migration identity. It acquires a PostgreSQL advisory lock, validates checksums, and applies each pending migration once. No API instance owns migration credentials.
 4. If the migration fails, do not replace the application. Capture safe diagnostics, restore only when the documented recovery decision requires it, and otherwise correct with a new forward migration.
@@ -155,13 +156,13 @@ Every workload sets CPU/memory limits, a non-root UID, read-only root filesystem
 | Region and application | One region, one web and one API instance; replacement causes brief drain or planned maintenance | Multiple application instances across failure zones, tested load balancing and rolling/blue-green replacement |
 | Database | One managed PostgreSQL 18 primary with daily recoverable backups | Multi-zone HA/failover, point-in-time recovery, tested replica/failover behavior |
 | Recovery | 24-hour RPO and four-hour RTO; manual restore orchestration | Tighter stakeholder-approved objectives, continuous archive/PITR, automated recovery where justified |
-| Delivery | Staging promotion and manually approved production release | Progressive/canary delivery and automated rollback only after telemetry and scale justify them |
+| Delivery | `FBODev` integration deployment, `Release-<version>` exact-digest NonProd acceptance, then manually approved `FBOProd` production release | Progressive/canary delivery and automated rollback only after telemetry and scale justify them |
 | Capacity | Fixed resource limits at documented verification headroom | Evidence-based autoscaling and capacity forecasts |
 
 Kubernetes, a service mesh, message broker, distributed cache, multiple regions, and application-managed database replication are not MVP requirements.
 
 ## 11. Verification and ownership
 
-Issue #10 provides reproducible local commands, environment validation, probes, structured logging, and graceful shutdown. Issue #11 creates the Flyway baseline, role separation, empty/upgrade migration tests, idempotent reference seeds, and forward-fix policy. Issue #26 builds/scans immutable artifacts, tests PostgreSQL 18 parity, protects credentials, and documents environment controls.
+Issue #10 provides reproducible local commands, environment validation, probes, structured logging, and graceful shutdown. Issue #11 creates the Flyway baseline, role separation, empty/upgrade migration tests, idempotent reference seeds, and forward-fix policy. Issue #26 builds/scans immutable artifacts, tests PostgreSQL 18 parity, validates pull-request bases, protects credentials/branches, and documents the `FBODev`/`Release-<version>`/`FBOProd` controls.
 
 The application owner owns image contents and startup behavior. The database owner approves migrations and restore decisions. The platform owner owns environment isolation, DNS/TLS, network policy, secrets, resources, and managed services. The release owner follows the promotion sequence. Provider-specific implementation is recorded in the issue #27 operating guide without changing these boundaries.

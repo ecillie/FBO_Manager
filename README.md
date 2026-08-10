@@ -1,6 +1,15 @@
 # FBO_Manager
 FBO_Manager is a full-stack airport operations platform that helps FBOs manage aircraft arrivals, departures, service requests, customer details, and daily ramp activity through one centralized and user-friendly system.
 
+## Delivery branches
+
+- `FBODev` is the integration branch and the base for ordinary ticket pull requests.
+- `Release-1.0.0` is the MVP release-candidate branch deployed to the non-production acceptance environment.
+- `FBOProd` is the default, production-record branch; routine feature work does not merge directly into it.
+- Short-lived ticket branches use `<issue-number>-<short-description>`, branch from `FBODev`, and are deleted after merge.
+
+The release candidate is built once, verified in NonProd, merged to `FBOProd`, tagged `v1.0.0`, and deployed to production using the exact candidate artifact digests. See the [testing, CI/CD, and release strategy](docs/architecture/testing-and-release.md) for the complete branch, hotfix, and promotion policy.
+
 ## Project documentation
 
 - [MVP delivery plan](docs/mvp-delivery-plan.md)
@@ -21,6 +30,7 @@ FBO_Manager is a full-stack airport operations platform that helps FBOs manage a
 - [Deployment architecture decision](docs/architecture/decisions/0005-portable-single-region-container-deployment.md)
 - [Operations and recovery architecture decision](docs/architecture/decisions/0006-managed-telemetry-and-tested-backup-recovery.md)
 - [Testing and release architecture decision](docs/architecture/decisions/0007-layered-verification-and-immutable-promotion.md)
+- [Branch and environment promotion architecture decision](docs/architecture/decisions/0008-environment-aligned-branch-promotion.md)
 - [Database design](docs/database-design.md)
 - [Database ER diagram](docs/database-er-diagram.md)
 - [Database schema baseline](db/README.md)
