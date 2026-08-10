@@ -52,7 +52,7 @@ Logs must not contain authorization/cookie headers, OIDC tokens or claims, sessi
 
 Do not log every dashboard row, entity, SQL call, or health success. Sample optional success detail while retaining complete request aggregate metrics and all warnings/errors. Rate-limit repeated identical errors to protect the collector while incrementing an unsampled counter. Collector failure must not block or crash a committed business transaction; bounded buffers drop diagnostic events with an observable counter rather than exhausting memory/disk.
 
-Production diagnostic logs are retained searchable for 30 days and then deleted under provider policy. Staging logs are retained 14 days; CI/local retention is transient. Extending retention requires a purpose and privacy/cost review. Audit events and domain history follow their separate policies.
+Production diagnostic logs are retained searchable for 30 days and then deleted under provider policy. NonProd logs are retained 14 days; Development/CI/local retention is transient. Extending retention requires a purpose and privacy/cost review. Audit events and domain history follow their separate policies.
 
 ## 4. Metrics and dashboards
 
@@ -99,7 +99,7 @@ Thresholds are starting values. Tune them using pilot evidence while preserving 
 | Fuel anomaly | Paired-transfer rollback occurs, balance crosses nominal bound, or adjustment rate exceeds site threshold | Fuel manager before the next fuel operation/shift handoff; reconcile physical state and ledger. Page only for suspected loss or unsafe operation. |
 | Crash loop/resource saturation | More than 3 restarts/10 minutes, memory above 90%, CPU saturation for 15 minutes, or graceful drain timeout | Platform/application owner; stop repeated unsafe rollout, collect safe diagnostics, and restore last compatible artifact or resource headroom. |
 
-Alerts route through the managed monitoring service to environment-specific groups. Production pages reach only named on-call contacts; staging warnings go to contributors during working hours. Alert messages contain environment, service, safe symptom, dashboard/runbook link, and release version—never raw customer/worker/inventory data.
+Alerts route through the managed monitoring service to environment-specific groups. Production pages reach only named on-call contacts; Development/NonProd warnings go to the developer during working hours. Alert messages contain environment, service, safe symptom, dashboard/runbook link, and release version—never raw customer/worker/inventory data.
 
 ## 6. Audit records versus logs
 
@@ -122,7 +122,7 @@ The backend never reports success before PostgreSQL commits. It does not automat
 
 ## 8. Slow-query and performance operations
 
-Enable `pg_stat_statements` or the managed provider's equivalent without capturing bound values. Give every application query/use case a stable low-cardinality name. In staging and production:
+Enable `pg_stat_statements` or the managed provider's equivalent without capturing bound values. Give every application query/use case a stable low-cardinality name. In NonProd and production:
 
 - record a sanitized slow-query event for requests whose database time exceeds 250 ms, including query fingerprint/name, duration, rows, request ID, and transaction/use-case name;
 - review the highest total-time, mean-time, p95 where available, call-count, lock-wait, and temporary-I/O fingerprints at least weekly during the pilot and before a release with query/schema changes;
@@ -165,8 +165,8 @@ A quarterly exercise succeeds only if a fresh isolated database becomes usable, 
 
 ## 10. Telemetry location, access, and incident handling
 
-Shared-environment JSON logs and OTLP metrics live in the managed telemetry service selected with the deployment provider; database metrics/backups live in the managed PostgreSQL/backup controls and feed summary alerts into the same operations view. Staging and production use separate projects/indexes and access groups.
+Shared-environment JSON logs and OTLP metrics live in the managed telemetry service selected with the deployment provider; database metrics/backups live in the managed PostgreSQL/backup controls and feed summary alerts into the same operations view. Development, NonProd, and production use separate projects/indexes and access groups.
 
-Access is named, MFA-protected, least privilege, and reviewed at least quarterly. Contributors receive staging access by default, not production. Production diagnostic access is limited to application/platform support; audit access additionally requires `AUDIT_READ` or break-glass approval. Provider access and audit exports are logged. Shared links and local bulk downloads of production logs are prohibited. Incident evidence exports go to an approved encrypted location with a documented owner and deletion date.
+Access is named, MFA-protected, least privilege, and reviewed at least quarterly. The developer receives Development/NonProd access by default, not standing production access. Production diagnostic access is limited to application/platform support; audit access additionally requires `AUDIT_READ` or break-glass approval. Provider access and audit exports are logged. Shared links and local bulk downloads of production logs are prohibited. Incident evidence exports go to an approved encrypted location with a documented owner and deletion date.
 
 Issue #27 must document exact dashboards, alert routes, provider backup commands, restore commands, manual-continuity contacts, reconciliation steps, common failure modes, and escalation contacts. No runbook may require a secret in a command line, committed file, ticket, or chat message.

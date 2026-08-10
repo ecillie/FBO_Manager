@@ -14,7 +14,7 @@ Diagnostic logs have different integrity, privacy, transaction, and retention ne
 
 ## Decision
 
-Emit allowlisted JSON logs to standard output and low-cardinality Micrometer metrics through OTLP or a provider-compatible collector. Store/search them in environment-isolated managed telemetry with named MFA-protected access. Use request/trace IDs and server-derived worker context, never secrets, bodies, tokens, contact data, raw query values, or high-cardinality entity labels. Retain production diagnostic logs for 30 days and staging logs for 14 days.
+Emit allowlisted JSON logs to standard output and low-cardinality Micrometer metrics through OTLP or a provider-compatible collector. Store/search them in environment-isolated managed telemetry with named MFA-protected access. Use request/trace IDs and server-derived worker context, never secrets, bodies, tokens, contact data, raw query values, or high-cardinality entity labels. Retain production diagnostic logs for 30 days and NonProd logs for 14 days.
 
 Persist required audit events in PostgreSQL as append-only application records separate from logs. Commit successful sensitive-action audit events with the business transaction and fail that command closed if the audit event cannot persist. Retain audit events online at least 365 days. Keep the fuel ledger and other domain history authoritative and independent of both telemetry types.
 

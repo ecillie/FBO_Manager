@@ -2,7 +2,7 @@
 
 ## 1. Purpose and scope
 
-This document defines how FBO Manager verifies architecture, business rules, contracts, security, migrations, concurrency, and release safety for GitHub issue [#36](https://github.com/ecillie/FBO_Manager/issues/36). The controlling decision is [ADR 0007](decisions/0007-layered-verification-and-immutable-promotion.md). Backend test issue [#25](https://github.com/ecillie/FBO_Manager/issues/25) and CI issue [#26](https://github.com/ecillie/FBO_Manager/issues/26) implement the backend and pipeline requirements.
+This document defines how FBO Manager verifies architecture, business rules, contracts, security, migrations, concurrency, and release safety for GitHub issue [#36](https://github.com/ecillie/FBO_Manager/issues/36). [ADR 0007](decisions/0007-layered-verification-and-immutable-promotion.md) controls verification and immutable artifacts; [ADR 0008](decisions/0008-environment-aligned-branch-promotion.md) controls branch, solo-review, and environment-promotion behavior. Backend test issue [#25](https://github.com/ecillie/FBO_Manager/issues/25) and CI issue [#26](https://github.com/ecillie/FBO_Manager/issues/26) implement the backend and pipeline requirements.
 
 Testing follows risk, not a target number of tests. Fast unit and component tests explain most behavior; PostgreSQL 18 integration and concurrency tests prove rules that depend on transactions, locks, indexes, constraints, triggers, and views; a small critical-path end-to-end suite proves that assembled deployable units work together.
 
@@ -16,9 +16,9 @@ Testing follows risk, not a target number of tests. Fast unit and component test
 | API/security/contract | Full HTTP serialization, envelopes, validation, auth/CSRF/capabilities, idempotency, status/error mapping, OpenAPI conformance; Spring Boot test server and real PostgreSQL | Every API/backend PR; compare implementation and `contracts/openapi/v1.yaml`. |
 | Concurrency | Two or more real database connections/HTTP clients synchronized at contested decision points | Every backend PR for core race cases; repeat enough to detect nondeterminism, with deterministic barriers rather than sleeps. |
 | Frontend unit/component | Formatting and state helpers; React Testing Library/Vitest for routes, forms, accessibility, capability rendering, loading/error/conflict/unknown-outcome states; MSW generated/validated against OpenAPI examples | Every frontend PR in browser-like DOM; test observable behavior rather than component internals. |
-| Browser end-to-end | Built `fbo-web`, built `fbo-api`, PostgreSQL 18, deterministic test OIDC adapter, and Playwright against a real supported browser | Critical smoke paths on every PR after lower layers; complete critical workflow suite on main/release candidate. No provider production credentials. |
+| Browser end-to-end | Built `fbo-web`, built `fbo-api`, PostgreSQL 18, deterministic test OIDC adapter, and Playwright against a real supported browser | Critical smoke paths on every PR after lower layers; complete critical workflow suite on `Release-<version>` candidates. No provider production credentials. |
 | Performance/reliability | Representative PostgreSQL dataset, 50 simulated authenticated users, dependency failure, graceful drain, backup/restore, and query-plan checks | Scheduled and before production release when affected; baseline evidence retained with artifact/environment metadata. |
-| Manual exploratory/accessibility/security | Human review of usability, operational recovery, keyboard/screen-reader behavior, and threat-model changes | Staging release candidate; supplements but never replaces automated rules. |
+| Manual exploratory/accessibility/security | Human review of usability, operational recovery, keyboard/screen-reader behavior, and threat-model changes | NonProd release candidate; supplements but never replaces automated rules. |
 
 An end-to-end test does not replace a focused unit or PostgreSQL test. A mocked repository cannot prove a partial unique index, transaction rollback, or row lock. A snapshot alone cannot prove accessible names, keyboard behavior, or correct API errors.
 
@@ -63,7 +63,7 @@ CI performs all of these checks:
 2. Rerun approved reference-data seed logic and prove no duplicates or destructive resets.
 3. For every release candidate, restore or construct the latest supported prior-release schema/data fixture, apply new migrations, and run integrity plus application smoke tests.
 4. Verify released migration checksums are unchanged and a second concurrent migration runner is serialized by the advisory lock.
-5. Exercise failure of a migration in staging/test and prove the API does not start against a partially unsupported version. Repair with a new migration or recreated ephemeral database, never by editing released history.
+5. Exercise failure of a migration in NonProd/test and prove the API does not start against a partially unsupported version. Repair with a new migration or recreated ephemeral database, never by editing released history.
 
 Major PostgreSQL upgrades use a separate compatibility plan that tests dump/restore or `pg_upgrade`, extensions, drivers, Flyway, queries, and performance before changing the pinned major.
 
@@ -80,9 +80,19 @@ The gate applies to the repository totals after the baseline implementation and 
 
 Flaky tests are defects. CI retries infrastructure setup only when the test itself did not begin; it does not automatically rerun a failed assertion to turn the check green. A temporarily quarantined test needs an owner, linked issue, expiry no longer than seven days, and equivalent risk control before merge.
 
-## 6. Pull-request and main-branch controls
+## 6. Pull-request and branch controls
 
-`main` is protected. Contributors use short-lived branches and pull requests. The selected merge strategy is squash merge so one reviewed change maps to one main-branch commit and release note; direct pushes and force pushes are prohibited.
+The repository uses three delivery roles:
+
+| Branch | Allowed work | Promotion role |
+| --- | --- | --- |
+| `FBODev` | Ordinary ticket pull requests from `<issue-number>-<short-description>` branches. Ticket branches start from current `FBODev`, explicitly target it, squash merge, and are deleted afterward. | Successful integration commits deploy to the development environment. |
+| `Release-1.0.0` | The MVP candidate cut from an approved `FBODev` commit. Only release-blocking fixes enter after the cut; every fix is forward-ported to `FBODev`. Future releases use `Release-<version>`. | A successful candidate build deploys to NonProd for acceptance. |
+| `FBOProd` | Release-promotion pull requests and production hotfixes only. Routine tickets never target this branch even though it is the GitHub default. | The accepted release tree is tagged `v<version>` and production deploys its already-tested candidate digests. |
+
+`FBODev`, the active `Release-<version>` branch, and `FBOProd` must be protected before implementation code uses them: require pull requests, current applicable checks, resolved conversations, and prohibit direct/force pushes. Ticket pull requests use squash merge. A release promotion preserves the accepted release tree and release manifest; it must not substitute a newly rebuilt artifact.
+
+A production hotfix starts from `FBOProd`, returns through a protected pull request, receives a patch tag, and is forward-ported to `FBODev` and any active release branch. Hotfix completion includes those forward ports so future development cannot regress the correction.
 
 ### 6.1 Required pull-request checks
 
@@ -91,13 +101,13 @@ Flaky tests are defects. CI retries infrastructure setup only when the test itse
 | Source hygiene | Repository formatting, frontend/backend lint, Java compiler warnings/static analysis, TypeScript strict typecheck, generated-file consistency, and documentation/link/Mermaid checks. |
 | Reproducible dependencies | Maven Wrapper and pinned plugin/dependency rules; package-manager frozen lockfile. CI fails uncommitted lockfile or generated OpenAPI client drift. |
 | Architecture and tests | Backend unit/module/architecture, PostgreSQL integration, API/security/contract, concurrency, frontend unit/component/accessibility, and critical browser smoke suites. |
-| Database/API | Empty and prior-version migration checks, seed rerun, OpenAPI lint, implementation conformance, examples, generated-client build, and breaking-change comparison against `main`. |
+| Database/API | Empty and prior-version migration checks, seed rerun, OpenAPI lint, implementation conformance, examples, generated-client build, and breaking-change comparison against the pull-request base (`FBODev` for ordinary tickets; `FBOProd` for release compatibility). |
 | Security/supply chain | Secret scan over history/diff, dependency vulnerability review, static security analysis, license allowlist, container/filesystem scan, least-privilege workflow check, and SBOM generation for release artifacts. |
 | Build | Production frontend and backend packages/images build once from the reviewed commit. CI does not publish from an untrusted fork context with secrets. |
 
-All required checks must pass on the current head. At least one approval from a contributor other than the author is required, and approval is dismissed on material new commits. Changes to authentication/authorization, cryptography/secrets, audit, fuel ledger, database migrations, CI workflows, production deployment, backup/restore, or architecture decisions require review from the named security/database/platform/architecture owner as applicable. `CODEOWNERS` expresses these paths when issue #26 is implemented.
+All required checks must pass on the current head. While the project has one developer, the author completes a recorded self-review covering scope, tests, migrations, security, generated/artifact drift, documentation, and rollback/forward-fix impact. An independent review is requested when a qualified reviewer is available but is not an impossible required branch rule. Security, database, identity, fuel-ledger, CI/platform, recovery, and production-sensitive changes carry explicit risk evidence into the release approval.
 
-Conversations must be resolved. Administrators do not bypass required checks for convenience. Emergency bypass requires two named approvers when available, an incident/change record, an immediate post-merge verification, and a follow-up PR restoring the normal path.
+When a second qualified contributor joins, branch protection changes to require at least one approval from someone other than the author, dismisses approval on material new commits, and uses `CODEOWNERS` for the named sensitive paths. Conversations must be resolved in both phases. Administrators do not bypass required checks for convenience. Emergency bypass requires the available named approvers, an incident/change record, immediate post-merge verification, and a follow-up restoring the normal path.
 
 ## 7. Supply-chain controls
 
@@ -112,7 +122,7 @@ Tool choices may change as long as the control and failure semantics stay equiva
 
 ## 8. Build artifacts and immutable promotion
 
-A successful protected-main build produces once:
+A successful protected `Release-<version>` candidate build produces once:
 
 - `fbo-api` OCI image with Java runtime/application and the migration command;
 - `fbo-web` OCI image with hashed static assets and web/proxy configuration;
@@ -120,23 +130,26 @@ A successful protected-main build produces once:
 - checksums, build/test reports, SBOMs, vulnerability/license results, and signed provenance/attestation; and
 - a release manifest recording Git commit, semantic application version, image digests, schema target version, compatibility notes, and required configuration keys.
 
-CI signs images/attestations using short-lived workload identity. Staging and production deploy exact digests from the same build; they do not rebuild, re-resolve dependencies, or inject environment values into frontend JavaScript. Environment configuration and secrets arrive at runtime as defined in [deployment architecture](deployment.md).
+CI signs images/attestations using short-lived workload identity. NonProd and production deploy exact digests from the same candidate build; they do not rebuild, re-resolve dependencies, or inject environment values into frontend JavaScript. `FBODev` artifacts are development-only and are not relabeled as an accepted release. Environment configuration and secrets arrive at runtime as defined in [deployment architecture](deployment.md).
 
 ## 9. Promotion, migration, and release verification
 
 ```mermaid
 flowchart LR
-    pr["Pull request<br/>review + required checks"] --> merge["Squash to protected main"]
-    merge --> build["Build once<br/>scan, SBOM, sign, publish digests"]
-    build --> staging["Deploy to staging<br/>preflight + migration job"]
-    staging --> verify["E2E, security, migration,<br/>performance/restore checks as affected"]
+    ticket["Ticket branch<br/>issue-number + description"] --> devPr["PR + required checks<br/>explicit base FBODev"]
+    devPr --> dev["Squash to FBODev<br/>deploy Dev"]
+    dev --> release["Cut Release-version<br/>freeze feature scope"]
+    release --> build["Build candidate once<br/>scan, SBOM, sign, publish digests"]
+    build --> nonprod["Deploy same digests to NonProd<br/>preflight + migration job"]
+    nonprod --> verify["E2E, security, migration,<br/>performance/restore checks as affected"]
     verify --> approval["Named production approval<br/>change/recovery preflight"]
-    approval --> migrate["Production backup check<br/>single migration job"]
+    approval --> prod["Promotion PR to FBOProd<br/>tag v-version; no rebuild"]
+    prod --> migrate["Production backup check<br/>single migration job"]
     migrate --> deploy["Deploy same API/web digests"]
     deploy --> observe["Smoke + 30-minute observation<br/>errors, latency, workflows"]
 ```
 
-Staging promotion is automatic from a successful protected-main artifact when the environment is available. Production promotion is manual and requires the release owner plus business/operations approval, a successful staging soak appropriate to risk (at least 30 minutes for an ordinary MVP change), a recent healthy backup, no active incident, complete release notes, and a compatible migration/rollback-or-forward-fix decision.
+Development deployment follows a successful `FBODev` integration build. NonProd promotion follows a successful protected `Release-<version>` candidate build when the environment is available. Production promotion is manual and requires the release owner plus business/operations approval, a successful NonProd soak appropriate to risk (at least 30 minutes for an ordinary MVP change), a recent healthy backup, no active incident, complete release notes, and a compatible migration/rollback-or-forward-fix decision. Merging to `FBOProd` records and tags the accepted source tree; production still deploys the signed candidate digests recorded by the release manifest.
 
 The migration job runs before API replacement using the exact API digest and separate migration identity. Expand/migrate/contract schema evolution preserves compatibility with the last production version. A failed migration stops deployment. Do not use production down migrations; issue a new forward migration. Roll back the application only when the new schema remains backward compatible. A database restore is a disaster-recovery action, not routine release rollback.
 
@@ -144,7 +157,7 @@ Release verification includes:
 
 1. correct artifact digests, environment, config validation, schema version, and health/readiness;
 2. static asset load and API/OpenAPI compatibility;
-3. OIDC login and logout using a designated non-production/staging identity, or a production-safe synthetic authentication check that creates no staff access;
+3. OIDC login and logout using a designated NonProd identity, or a production-safe synthetic authentication check that creates no staff access;
 4. authorized read of the dashboard plus bounded representative queries;
 5. environment-safe critical write smoke checks where designated test records/processes exist; otherwise recent automated E2E evidence and read-only production checks;
 6. no unexpected error, latency, pool, audit, or workflow-conflict increase during a 30-minute observation window; and
@@ -164,13 +177,13 @@ A code pull request updates architecture documentation in the same change when i
 - telemetry/audit separation, SLO/alert, RPO/RTO, backup/restore responsibility, or data-access policy; or
 - required test/review/security gate, artifact format, promotion, rollback/forward-fix, or release approval.
 
-Update the relevant detailed guide, ADR status/consequences or create a superseding ADR, main `docs/architecture.md` summary, Mermaid source, ADR index, and implementation traceability as applicable. A patch implementation that stays within an accepted decision needs no new ADR. CI link and Mermaid checks prevent stale references; reviewers verify semantic consistency.
+Update the relevant detailed guide, ADR status/consequences or create a superseding ADR, primary `docs/architecture.md` summary, Mermaid source, ADR index, and implementation traceability as applicable. A patch implementation that stays within an accepted decision needs no new ADR. CI link and Mermaid checks prevent stale references; reviewers verify semantic consistency.
 
 ## 11. Intentional MVP compromises
 
 - One web/API instance and one PostgreSQL primary; no canary, blue/green, automatic failover, multi-zone HA, or PITR.
-- No ephemeral preview environment for every pull request. CI assembles all units; staging is the shared full environment.
-- Critical browser smoke runs on every PR; the broader E2E, performance, fault, and restore suites run on main/schedule/release according to risk because they are slower.
+- No ephemeral preview environment for every pull request. CI assembles all units; NonProd is the shared full acceptance environment.
+- Critical browser smoke runs on every PR; the broader E2E, performance, fault, and restore suites run on schedule and on `Release-<version>` candidates according to risk because they are slower.
 - Production approval and exceptional vulnerability/license decisions are human, recorded steps rather than autonomous deployment decisions.
 - Coverage thresholds focus on behavior-bearing code and enumerated critical cases rather than pursuing 100% across generated/configuration code.
 - A manually coordinated forward fix may be safer than automatic rollback after an irreversible migration.
