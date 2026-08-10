@@ -6,9 +6,11 @@
 - **Tracking issue:** [#34](https://github.com/ecillie/FBO_Manager/issues/34)
 - **Implementation issues:** [#10](https://github.com/ecillie/FBO_Manager/issues/10), [#11](https://github.com/ecillie/FBO_Manager/issues/11), and [#26](https://github.com/ecillie/FBO_Manager/issues/26)
 
+> **Amendment:** [ADR 0008](0008-environment-aligned-branch-promotion.md) names the shared environments Development, NonProd, and production and maps them to `FBODev`, `Release-<version>`, and `FBOProd`. The portable topology and isolation requirements below remain accepted.
+
 ## Context
 
-The MVP needs reproducible local and CI environments plus an operable shared staging and production/pilot topology. It serves one airport and roughly 25 concurrent staff, so multi-cluster orchestration would create more operational burden than availability benefit. PostgreSQL is authoritative and needs stronger isolation, backup, and lifecycle controls than an application container filesystem.
+The MVP needs reproducible local and CI environments plus an operable shared Development, NonProd, and production/pilot topology. It serves one airport and roughly 25 concurrent staff, so multi-cluster orchestration would create more operational burden than availability benefit. PostgreSQL is authoritative and needs stronger isolation, backup, and lifecycle controls than an application container filesystem.
 
 Security requires a same-origin browser experience, private database and management paths, runtime secret injection, and distinct environment identities. Releases need immutable artifacts and one controlled migration owner. The architecture must preserve a path to Release One high availability without claiming that the MVP meets multi-zone or point-in-time-recovery goals.
 
@@ -16,9 +18,9 @@ Security requires a same-origin browser experience, private database and managem
 
 Use provider-neutral OCI images on a single-region managed container service for shared environments. Deploy an immutable static `fbo-web` image and a Java 25/Spring Boot 4.1 `fbo-api` image at one public HTTPS origin. Run Flyway as a short-lived `fbo-migrate` command from the exact API image digest before replacing the API. Use a separately managed PostgreSQL 18 primary reachable only over verified TLS on a private network.
 
-Use Node.js 24 LTS for frontend builds, Java 25 LTS for backend build/runtime, and PostgreSQL 18 in local, CI, staging, and production. Exact dependencies, patch images, package manager, and image digests are repository-pinned. Local development uses containers and CI creates an ephemeral PostgreSQL 18 service.
+Use Node.js 24 LTS for frontend builds, Java 25 LTS for backend build/runtime, and PostgreSQL 18 in local, CI, Development, NonProd, and production. Exact dependencies, patch images, package manager, and image digests are repository-pinned. Local development uses containers and CI creates an ephemeral PostgreSQL 18 service.
 
-Separate local, CI, staging, and production configuration, OIDC clients, credentials, databases, telemetry, and backups. Store non-secret settings in reviewed deployment configuration and inject secrets from a platform secret manager through mounted files/workload identity. Separate migration, application, backup, and break-glass database responsibilities.
+Separate local, CI, Development, NonProd, and production configuration, OIDC clients, credentials, databases, telemetry, and backups. Store non-secret settings in reviewed deployment configuration and inject secrets from a platform secret manager through mounted files/workload identity. Separate migration, application, backup, and break-glass database responsibilities.
 
 Expose only HTTPS `443` publicly; redirect `80`. Keep API, management, and PostgreSQL ports private. Start one API instance with a 10-connection Hikari pool, explicit limits and probes, and graceful shutdown. Promise low rather than zero downtime. Use expand/migrate/contract changes, no automatic production down migrations, application rollback only with backward-compatible schema, and a new forward migration otherwise.
 

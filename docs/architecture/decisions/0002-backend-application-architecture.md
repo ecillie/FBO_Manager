@@ -24,7 +24,7 @@ The [MVP architecture](../../architecture.md), [workflow definitions](../mvp-sco
 
 The architecture must define an implementation shape before the Backend MVP issues scaffold code. It must prevent controllers from bypassing application services, keep persistence records from leaking into the API or domain, make transaction ownership visible, and allow module-boundary violations to fail automated checks.
 
-[ADR 0003](0003-api-contracts-and-operational-data-flows.md) defines the exact API contract and operational flows. Issues #12 and #24 implement and publish that contract. ADRs [0004](0004-delegated-identity-and-capability-authorization.md), [0005](0005-portable-single-region-container-deployment.md), [0006](0006-managed-telemetry-and-tested-backup-recovery.md), and [0007](0007-layered-verification-and-immutable-promotion.md) now define the identity, deployment, operations, and testing/release constraints that fit around these backend boundaries.
+[ADR 0003](0003-api-contracts-and-operational-data-flows.md) defines the exact API contract and operational flows. Issues #12 and #24 implement and publish that contract. ADRs [0004](0004-delegated-identity-and-capability-authorization.md), [0005](0005-portable-single-region-container-deployment.md), [0006](0006-managed-telemetry-and-tested-backup-recovery.md), [0007](0007-layered-verification-and-immutable-promotion.md), and [0008](0008-environment-aligned-branch-promotion.md) now define the identity, deployment, operations, testing/release, and branch-promotion constraints that fit around these backend boundaries.
 
 ## Decision
 
