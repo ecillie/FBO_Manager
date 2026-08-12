@@ -36,7 +36,7 @@ class FboManagerPropertiesTests {
 
 	@Test
 	void rejectsMissingDatabaseSecret() {
-		validContext().run(context -> {
+		validContext().withPropertyValues("fbo.database.password=").run(context -> {
 			assertThat(context).hasFailed();
 			assertThat(context.getStartupFailure()).hasStackTraceContaining("database.password");
 		});

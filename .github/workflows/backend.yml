@@ -7,6 +7,10 @@ on:
       - "backend/**"
       - ".github/workflows/backend.yml"
   push:
+    branches:
+      - FBODev
+      - FBOProd
+      - "Release-*"
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
@@ -45,9 +49,6 @@ jobs:
         shell: bash
         working-directory: backend
 
-    env:
-      FBO_DATABASE_PASSWORD: ci-only-password
-
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -70,6 +71,8 @@ jobs:
         run: ./mvnw --batch-mode --no-transfer-progress clean verify
 
       - name: Smoke-test private health probes
+        env:
+          FBO_DATABASE_PASSWORD: ci-only-password
         run: |
           set -euo pipefail
 
