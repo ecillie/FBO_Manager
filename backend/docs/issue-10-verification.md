@@ -1,6 +1,6 @@
 # Issue 10 verification
 
-Local completion evidence captured on 2026-08-11 in `America/New_York`. The committed CI workflow repeats the clean build and healthy-database probe checks after checkout; no CI run URL exists until this branch is pushed.
+Local completion evidence captured on 2026-08-11 in `America/New_York`. The committed CI workflow repeats the clean build and healthy-database probe checks after checkout. The functional head `a4cc114` passed the [JDK 25 / Maven verification run](https://github.com/ecillie/FBO_Manager/actions/runs/31552973756) in 1 minute 11 seconds.
 
 ## Toolchain
 
