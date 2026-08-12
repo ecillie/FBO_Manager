@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: fbo-manager
+  lifecycle:
+    timeout-per-shutdown-phase: ${FBO_SHUTDOWN_TIMEOUT:30s}
+
+server:
+  address: ${FBO_API_ADDRESS:127.0.0.1}
+  port: ${FBO_API_PORT:8080}
+  shutdown: graceful
+
+management:
+  server:
+    address: ${FBO_MANAGEMENT_ADDRESS:127.0.0.1}
+    port: ${FBO_MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-components: never
+      show-details: never
+      group:
+        liveness:
+          include: livenessState
+          show-components: never
+          show-details: never
+        readiness:
+          include: readinessState,postgres
+          show-components: never
+          show-details: never
+
+logging:
+  level:
+    root: ${FBO_LOG_LEVEL:INFO}
+  structured:
+    format:
+      console: logstash
+    json:
+      add:
+        service: ${spring.application.name}
+        environment: ${FBO_ENVIRONMENT:local}
+        version: ${FBO_BUILD_VERSION:dev}
+        instanceId: ${FBO_INSTANCE_ID:local}
+
+fbo:
+  environment: ${FBO_ENVIRONMENT:local}
+  database:
+    url: ${FBO_DATABASE_URL:jdbc:postgresql://localhost:5432/fbo_manager}
+    username: ${FBO_DATABASE_USERNAME:fbo_app}
+    password: ${FBO_DATABASE_PASSWORD:}
+    readiness-timeout: ${FBO_DATABASE_READINESS_TIMEOUT:3s}
+  airport:
+    timezone: ${FBO_AIRPORT_TIMEZONE:America/New_York}
+  logging:
+    level: ${FBO_LOG_LEVEL:INFO}
+  web:
+    allowed-origin: ${FBO_ALLOWED_ORIGIN:http://localhost:5173}
+  bindings:
+    api:
+      address: ${FBO_API_ADDRESS:127.0.0.1}
+      port: ${FBO_API_PORT:8080}
+    management:
+      address: ${FBO_MANAGEMENT_ADDRESS:127.0.0.1}
+      port: ${FBO_MANAGEMENT_PORT:8081}
+  shutdown:
+    timeout: ${FBO_SHUTDOWN_TIMEOUT:30s}

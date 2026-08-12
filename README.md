@@ -14,6 +14,7 @@ The release candidate is built once, verified in NonProd, merged to `FBOProd`, t
 
 ## Project documentation
 
+- [Backend local development guide](backend/README.md)
 - [MVP delivery plan](docs/mvp-delivery-plan.md)
 - [MVP architecture](docs/architecture.md)
 - [MVP scope, actors, and workflows](docs/architecture/mvp-scope-and-workflows.md)
