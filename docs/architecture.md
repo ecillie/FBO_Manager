@@ -135,7 +135,7 @@ The browser frontend is an untrusted client: it may improve usability with local
 
 The OIDC provider is a deliberate external trust boundary, but it is needed only for new authentication: ordinary authorized API requests validate local server-side session state and current worker capabilities. Managed operations services are shown as one logical boundary because provider products may differ while their access, encryption, redaction, backup, and recovery contracts remain fixed.
 
-The database is intentionally represented as one container rather than an entity graph. Its tables, relationships, and database-level constraints are maintained in the [detailed database design](database-design.md), [ER diagram](database-er-diagram.md), and [ordered PostgreSQL schema](../db/init/001_schema.sql).
+The database is intentionally represented as one container rather than an entity graph. Its tables, relationships, and database-level constraints are maintained in the [detailed database design](database-design.md), [ER diagram](database-er-diagram.md), and [ordered Flyway migrations](../backend/src/main/resources/db/migration).
 
 ### 4.3 Application component boundaries
 
@@ -170,7 +170,7 @@ Detailed steps, invariants, and expected failure behavior are in [MVP scope, act
 
 ## 6. Data and consistency baseline
 
-The [database design](database-design.md), [ER diagram](database-er-diagram.md), and initial [PostgreSQL schema](../db/init/001_schema.sql) define the current data model. Architecture decisions must preserve these core invariants:
+The [database design](database-design.md), [ER diagram](database-er-diagram.md), and [Flyway baseline schema](../backend/src/main/resources/db/migration/V1__baseline_schema.sql) define the current data model. Architecture decisions must preserve these core invariants:
 
 - no more than one active visit per aircraft;
 - no more than one on-ramp aircraft per parking spot;

@@ -15,7 +15,12 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
 		"fbo.database.password=test-only-password", "fbo.database.url=jdbc:postgresql://127.0.0.1:1/unavailable",
-		"fbo.database.readiness-timeout=1s", "management.server.address=127.0.0.1", "management.server.port=0"})
+		"fbo.database.readiness-timeout=1s", "spring.datasource.url=jdbc:postgresql://127.0.0.1:1/unavailable",
+		"spring.datasource.username=fbo_app", "spring.datasource.password=test-only-password",
+		"spring.datasource.hikari.connection-timeout=1000", "spring.datasource.hikari.initialization-fail-timeout=-1",
+		"spring.jpa.hibernate.ddl-auto=none", "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect",
+		"spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false", "management.server.address=127.0.0.1",
+		"management.server.port=0"})
 class HealthEndpointIntegrationTests {
 
 	private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();

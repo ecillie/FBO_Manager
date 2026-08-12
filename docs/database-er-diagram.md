@@ -209,6 +209,18 @@ erDiagram
         text notes
     }
 
+    IDEMPOTENCY_RECORDS {
+        string api_version PK
+        string operation_id PK
+        string idempotency_key PK
+        string command_fingerprint
+        int response_status
+        json response_body
+        datetime completed_at
+        datetime expires_at
+        bigint fuel_transaction_id FK
+    }
+
     CUSTOMERS o|--o{ AIRCRAFT : owns
     CUSTOMERS o|--o{ AIRCRAFT : operates
     AIRCRAFT_MANUFACTURERS ||--o{ AIRCRAFT_MODELS : makes
@@ -248,6 +260,7 @@ erDiagram
     FUEL_TRUCKS o|--o{ FUEL_INVENTORY_TRANSACTIONS : ledger_for
     SERVICE_REQUESTS o|--o{ FUEL_INVENTORY_TRANSACTIONS : caused_by
     WORKERS ||--o{ FUEL_INVENTORY_TRANSACTIONS : records
+    FUEL_INVENTORY_TRANSACTIONS o|--o{ IDEMPOTENCY_RECORDS : retains_evidence_for
 ```
 
 ## Reading the diagram
@@ -261,4 +274,4 @@ erDiagram
 - Nullable foreign keys are represented by `o|` at the parent side of a relationship.
 - `AIRPORT_SETTINGS` is intentionally standalone because all operational data implicitly belongs to the single configured airport.
 
-The report contains business constraints that cardinality alone cannot show, including one active visit per aircraft, one on-ramp aircraft per parking spot, one active task per worker or vehicle, and exactly one inventory holder per fuel transaction.
+The report contains business constraints that cardinality alone cannot show, including one active visit per aircraft, one on-ramp aircraft per parking spot, one active task per worker or vehicle, exactly one inventory holder per fuel transaction, and the idempotency namespace/fingerprint/retention rules.

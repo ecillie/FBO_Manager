@@ -10,7 +10,7 @@
 
 FBO Manager needs one backend application for the single-airport MVP. The backend must expose the API used by the browser frontend, enforce authorization and business workflows, preserve operational history, and coordinate concurrency-sensitive PostgreSQL writes.
 
-The [MVP architecture](../../architecture.md), [workflow definitions](../mvp-scope-and-workflows.md), [quality attributes](../quality-attributes.md), [database design](../../database-design.md), and [initial schema](../../../db/init/001_schema.sql) already establish the controlling constraints:
+The [MVP architecture](../../architecture.md), [workflow definitions](../mvp-scope-and-workflows.md), [quality attributes](../quality-attributes.md), [database design](../../database-design.md), and [Flyway baseline](../../../backend/src/main/resources/db/migration/V1__baseline_schema.sql) already establish the controlling constraints:
 
 - PostgreSQL is the authoritative operational store.
 - One deployable backend application and one database are preferred for the MVP.
@@ -195,7 +195,7 @@ The persistence rules are:
 - Bound every list query and make filtering and sorting explicit. A repository method may not expose an unbounded `findAll` path for operational tables.
 - Translate known named constraints and PostgreSQL SQLSTATE categories into stable application errors at the adapter boundary.
 
-Flyway SQL migrations under `src/main/resources/db/migration` are the schema source executed by the application and CI. Issue #11 will convert the current `db/init/001_schema.sql` into the initial ordered migration without losing PostgreSQL enums, constraints, partial indexes, triggers, functions, or views. Later applied versioned migrations are immutable; corrections use a new forward migration. ORM metadata is checked against migrations but never generates authoritative DDL.
+Flyway SQL migrations under `src/main/resources/db/migration` are the schema source executed by the application and CI. Issue #11 converted the historical schema into `V1__baseline_schema.sql` without losing PostgreSQL enums, constraints, partial indexes, triggers, functions, or views. Later applied versioned migrations are immutable; corrections use a new forward migration. ORM metadata is checked against migrations but never generates authoritative DDL.
 
 PostgreSQL 18 is pinned consistently across local, CI, and shared environments by [ADR 0005](0005-portable-single-region-container-deployment.md). Integration tests use PostgreSQL 18 through Testcontainers rather than an in-memory substitute, because the MVP relies on PostgreSQL-specific locking, partial indexes, recursive queries, enums, triggers, and views.
 

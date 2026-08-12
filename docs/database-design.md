@@ -389,6 +389,26 @@ Operational work items connecting the airport task, aircraft visit, service requ
 
 An airport-wide task may omit the aircraft and service references. When `service_request_id` is present, the task's visit must match the service request's visit. A vehicle or worker may have only one `IN_PROGRESS` task at a time in the MVP.
 
+### 3.8 Transactional idempotency
+
+#### `idempotency_records`
+
+Stores a completed command outcome in the same PostgreSQL transaction as its business effect. Inserting the composite key claims a command; PostgreSQL uniqueness and row locking serialize concurrent retries. If the transaction rolls back, the claim and business effect both disappear.
+
+| Attribute | Requirement | Description |
+| --- | --- | --- |
+| `api_version` | PK part | API-major namespace such as `v1`. |
+| `operation_id` | PK part | Stable OpenAPI operation identifier. |
+| `idempotency_key` | PK part | Caller key of 16–128 permitted ASCII characters. |
+| `command_fingerprint` | Required | Lowercase SHA-256 hex digest of the canonical validated command and trusted actor context. |
+| `response_status` | Required | Original successful/conflict response status retained for replay. |
+| `response_body` | Required `JSONB` | Original authoritative response data retained for replay. |
+| `completed_at` | Required | Commit outcome time. |
+| `expires_at` | Conditionally required | At least 24 hours after completion for ordinary commands. |
+| `fuel_transaction_id` | FK, conditional | Ledger evidence for an inventory write; such records do not receive an automatic expiry. |
+
+The composite primary key prevents duplicate effects within one API operation namespace. A key reused with a different fingerprint is a conflict. Ordinary records are indexed by expiry for bounded cleanup; fuel-linked records are retained with the append-only ledger evidence.
+
 ## 4. Relationship summary
 
 | Parent | Child | Cardinality | Meaning |
@@ -412,6 +432,7 @@ An airport-wide task may omit the aircraft and service references. When `service
 | `workers` | `worker_shifts` | one-to-many | A worker has many scheduled shifts. |
 | visits, services, vehicles, workers | `tasks` | optional one-to-many | A task links the resources needed to perform work. |
 | tanks or fuel trucks | `fuel_inventory_transactions` | one-to-many | Ledger entries produce the current inventory balance. |
+| `fuel_inventory_transactions` | `idempotency_records` | optional one-to-many | Inventory command records retain a ledger-evidence link and do not expire automatically. |
 
 ## 5. Core business rules and constraints
 
@@ -433,6 +454,7 @@ An airport-wide task may omit the aircraft and service references. When `service
 16. Historical visits, completed services, completed tasks, shifts, and fuel transactions are retained.
 17. Natural keys are treated as immutable after creation. Correcting one requires a controlled transaction that cascades the change to every foreign key.
 18. Every aircraft has one active-at-selection operation type independent of its model's physical category.
+19. An idempotency key is unique within API major version and operation ID; ordinary completed records live at least 24 hours, while inventory records remain linked to immutable ledger evidence.
 
 ## 6. State transitions
 

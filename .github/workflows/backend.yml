@@ -70,6 +70,12 @@ jobs:
       - name: Test, format-check, and package
         run: ./mvnw --batch-mode --no-transfer-progress clean verify
 
+      - name: Migrate smoke-test database
+        env:
+          FBO_DATABASE_PASSWORD: ci-only-password
+          SPRING_PROFILES_ACTIVE: migrate
+        run: java -jar target/fbo-manager-0.0.1-SNAPSHOT.jar
+
       - name: Smoke-test private health probes
         env:
           FBO_DATABASE_PASSWORD: ci-only-password
