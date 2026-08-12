@@ -10,7 +10,7 @@ Reference-data seed and initializer files are not currently present. Backend mig
 
 ## Initialization and migration policy
 
-There is intentionally no documented runnable initialization command until issue #11 provides the Maven/Flyway application context, migration files, idempotent seed logic, and local PostgreSQL 18 workflow. Do not apply `001_schema.sql` repeatedly to an initialized database or edit a deployed database manually.
+Issue #10 provides the pinned local PostgreSQL 18 container lifecycle in the [backend local development guide](../backend/README.md). There is intentionally no runnable schema-initialization command until issue #11 provides the Maven/Flyway application context, ordered migration files, and idempotent seed logic. Until then, the local container starts with an empty application database. Do not apply `001_schema.sql` repeatedly to an initialized database or edit a deployed database manually.
 
 The accepted deployment path runs a one-shot migration command from the exact backend image before application replacement. Released migrations are immutable and production fixes move forward with a new migration. See [ADR 0005](../docs/architecture/decisions/0005-portable-single-region-container-deployment.md) and the [deployment architecture](../docs/architecture/deployment.md#7-migration-and-deployment-sequence).
 
