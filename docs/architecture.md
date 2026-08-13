@@ -135,7 +135,7 @@ The browser frontend is an untrusted client: it may improve usability with local
 
 The OIDC provider is a deliberate external trust boundary, but it is needed only for new authentication: ordinary authorized API requests validate local server-side session state and current worker capabilities. Managed operations services are shown as one logical boundary because provider products may differ while their access, encryption, redaction, backup, and recovery contracts remain fixed.
 
-The database is intentionally represented as one container rather than an entity graph. Its tables, relationships, and database-level constraints are maintained in the [detailed database design](database-design.md), [ER diagram](database-er-diagram.md), and [ordered PostgreSQL schema](../db/init/001_schema.sql).
+The database is intentionally represented as one container rather than an entity graph. Its tables, relationships, and database-level constraints are maintained in the [detailed database design](database-design.md), [ER diagram](database-er-diagram.md), and [ordered Flyway migrations](../backend/src/main/resources/db/migration).
 
 ### 4.3 Application component boundaries
 
@@ -170,7 +170,7 @@ Detailed steps, invariants, and expected failure behavior are in [MVP scope, act
 
 ## 6. Data and consistency baseline
 
-The [database design](database-design.md), [ER diagram](database-er-diagram.md), and initial [PostgreSQL schema](../db/init/001_schema.sql) define the current data model. Architecture decisions must preserve these core invariants:
+The [database design](database-design.md), [ER diagram](database-er-diagram.md), and [Flyway baseline schema](../backend/src/main/resources/db/migration/V1__baseline_schema.sql) define the current data model. Architecture decisions must preserve these core invariants:
 
 - no more than one active visit per aircraft;
 - no more than one on-ramp aircraft per parking spot;
@@ -193,7 +193,7 @@ All public traffic uses TLS, production is same-origin, CORS allowlists exact or
 
 ## 8. Environments and deployment
 
-[ADR 0005](architecture/decisions/0005-portable-single-region-container-deployment.md) selects a portable single-region managed-container topology. Local development and CI use disposable containers and PostgreSQL 18. Staging and production/pilot use separate accounts/projects, OIDC clients, configuration, secret sets, databases, telemetry, backups, and access groups; production data never enters local or CI.
+[ADR 0005](architecture/decisions/0005-portable-single-region-container-deployment.md) selects a portable single-region managed-container topology. Local development and CI use disposable containers and PostgreSQL 18. Development, NonProd, and production/pilot use separate accounts/projects, OIDC clients, configuration, secret sets, databases, telemetry, backups, and access groups; production data never enters local, CI, or Development.
 
 CI builds immutable `fbo-web` and `fbo-api` OCI images. The web image serves hashed SPA assets and same-origin proxy paths; the API image runs Java 25/Spring Boot 4.1. A short-lived `fbo-migrate` command from the exact API digest applies Flyway migrations with a separate database identity before API replacement. Shared environments use managed PostgreSQL 18 on private port `5432` with certificate-verified TLS. Only public HTTPS `443` is exposed; backend `8080`, management `8081`, database, metrics, and detailed health paths stay private.
 
@@ -209,11 +209,11 @@ Parking, task dispatch, and paired fuel transfers fail atomically; unknown outco
 
 ## 10. Testing, CI/CD, and release
 
-[ADR 0007](architecture/decisions/0007-layered-verification-and-immutable-promotion.md) defines a risk-based verification pyramid: pure domain/application unit tests; Spring Modulith/ArchUnit boundaries; PostgreSQL 18 migration/repository tests; full API/security/OpenAPI tests; synchronized real-database concurrency tests; frontend component/accessibility tests; critical Playwright browser flows; and scheduled or pre-release performance, fault, and restore exercises. Deterministic builders, fixed clocks/seeds, disposable databases, real Flyway migrations, and no hidden rerun of failed assertions make results reproducible.
+[ADR 0007](architecture/decisions/0007-layered-verification-and-immutable-promotion.md) defines a risk-based verification pyramid: pure domain/application unit tests; Spring Modulith/ArchUnit boundaries; PostgreSQL 18 migration/repository tests; full API/security/OpenAPI tests; synchronized real-database concurrency tests; frontend component/accessibility tests; critical Playwright browser flows; and scheduled or pre-release performance, fault, and restore exercises. Deterministic builders, fixed clocks/seeds, disposable databases, real Flyway migrations, and no hidden rerun of failed assertions make results reproducible. [ADR 0008](architecture/decisions/0008-environment-aligned-branch-promotion.md) defines the current `FBODev` → `Release-<version>` → `FBOProd` promotion path and the solo-review transition.
 
-Protected pull requests require formatting/lint/type/static/architecture checks, all applicable test layers, migration/seed/OpenAPI/generated-client consistency, frozen dependency resolution, secret/vulnerability/license/image scanning, SBOMs, and least-privilege workflow review. At least one independent approval is required, with named owner review for security, database, platform, CI, fuel-ledger, and architecture paths; squash merge is the normal strategy.
+Ordinary ticket branches use `<issue-number>-<short-description>`, start from `FBODev`, and return through protected squash-merge pull requests. Required checks cover formatting/lint/type/static/architecture rules, applicable test layers, migration/seed/OpenAPI/generated-client consistency, frozen dependency resolution, secret/vulnerability/license/image scanning, SBOMs, and least-privilege workflow review. With one developer, a recorded self-review and complete automation replace an impossible second-developer merge rule; independent/path-owner approval becomes mandatory when a second qualified contributor joins, while sensitive production promotion still requires explicit risk and stakeholder approval.
 
-Protected main builds web/API images, OpenAPI/client artifacts, SBOMs, provenance, checksums, and the release manifest once. Signed exact digests promote to staging and then manually approved production; production never rebuilds. Release preflight verifies backup and migration compatibility, runs the one migration job, deploys with graceful readiness, exercises health/auth/dashboard/critical safe checks, and observes errors, latency, pools, audit, and workflows for at least 30 minutes for an ordinary change. [Testing, CI/CD, and release strategy](architecture/testing-and-release.md) contains the rule/state-machine test map, coverage gates, branch policy, supply-chain controls, promotion flow, and documentation-change triggers.
+`FBODev` deploys development integrations. The versioned `Release-1.0.0` candidate builds web/API images, OpenAPI/client artifacts, SBOMs, provenance, checksums, and the release manifest once for NonProd acceptance. After approval, its source tree merges to `FBOProd`, receives tag `v1.0.0`, and production deploys the same signed candidate digests without rebuilding. Release preflight verifies backup and migration compatibility, runs the one migration job, deploys with graceful readiness, exercises health/auth/dashboard/critical safe checks, and observes errors, latency, pools, audit, and workflows for at least 30 minutes for an ordinary change. [Testing, CI/CD, and release strategy](architecture/testing-and-release.md) contains the rule/state-machine test map, coverage gates, branch policy, supply-chain controls, promotion flow, and documentation-change triggers.
 
 ## 11. Planning scale
 
@@ -298,7 +298,7 @@ The following are outside the MVP architecture:
 | Security | [#33](https://github.com/ecillie/FBO_Manager/issues/33) | [Security architecture and threat model](architecture/security.md) and [ADR 0004](architecture/decisions/0004-delegated-identity-and-capability-authorization.md) |
 | Deployment | [#34](https://github.com/ecillie/FBO_Manager/issues/34) | [Environments, configuration, and deployment topology](architecture/deployment.md) and [ADR 0005](architecture/decisions/0005-portable-single-region-container-deployment.md) |
 | Operations | [#35](https://github.com/ecillie/FBO_Manager/issues/35) | [Observability, reliability, audit, and recovery](architecture/operations-and-recovery.md) and [ADR 0006](architecture/decisions/0006-managed-telemetry-and-tested-backup-recovery.md) |
-| Testing and release | [#36](https://github.com/ecillie/FBO_Manager/issues/36) | [Testing, CI/CD, and release strategy](architecture/testing-and-release.md) and [ADR 0007](architecture/decisions/0007-layered-verification-and-immutable-promotion.md) |
+| Testing and release | [#36](https://github.com/ecillie/FBO_Manager/issues/36) | [Testing, CI/CD, and release strategy](architecture/testing-and-release.md), [ADR 0007](architecture/decisions/0007-layered-verification-and-immutable-promotion.md), and [ADR 0008](architecture/decisions/0008-environment-aligned-branch-promotion.md) |
 | Consolidation | [#37](https://github.com/ecillie/FBO_Manager/issues/37) | This consolidated entry point, [ADR index](architecture/decisions/README.md), and [implementation traceability matrix](architecture/implementation-traceability.md) |
 
 The [implementation traceability matrix](architecture/implementation-traceability.md) maps Backend MVP issues #7–#27 to these decisions and constraints. Architecture documentation changes with implementation: the exact triggers are defined by the [testing and release strategy](architecture/testing-and-release.md#10-architecture-and-documentation-change-rules). A major boundary, trust relationship, source-of-truth rule, API compatibility rule, deployment/recovery assumption, or release-safety strategy requires the relevant guide and ADR to be updated or superseded in the same pull request.

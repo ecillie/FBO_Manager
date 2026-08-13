@@ -1,20 +1,35 @@
-# Database schema baseline
+# Database schema and migrations
 
-The current repository contains the initial PostgreSQL schema described in [the database design](../docs/database-design.md) and [ER diagram](../docs/database-er-diagram.md). It creates database-level business constraints plus current-state and fuel-balance views. It is a design/bootstrap artifact, not yet the application-owned migration path.
+The application-owned Flyway files under [`backend/src/main/resources/db/migration`](../backend/src/main/resources/db/migration) are the only runtime schema and reference-data source. The database design remains documented in [the database design](../docs/database-design.md) and [ER diagram](../docs/database-er-diagram.md).
 
-## Files
+## Baseline mapping
 
-- [`init/001_schema.sql`](init/001_schema.sql) creates the schema, constraints, indexes, triggers, sequences, and views.
+The obsolete `db/init/001_schema.sql` bootstrap path has been removed. Its exact historical contents are retained only as the committed integration-test fixture [`backend/src/test/resources/db/baseline/001_schema.sql`](../backend/src/test/resources/db/baseline/001_schema.sql). Tests normalize its `psql` transaction wrapper and prove that it maps exactly to `V1__baseline_schema.sql`; the fixture is not packaged and must never be applied as a runtime initializer.
 
-Reference-data seed and initializer files are not currently present. Backend migration issue [#11](https://github.com/ecillie/FBO_Manager/issues/11) must convert this baseline to ordered Flyway migrations and add idempotent reference seeds before a runnable backend claims database setup support.
+The runtime sequence is:
 
-## Initialization and migration policy
+- `V1__baseline_schema.sql`: the complete historical schema, including PostgreSQL enums, constraints, partial indexes, functions, triggers, sequences, and four current-state/balance views.
+- `V2__transactional_idempotency.sql`: atomic command claims/results with retention rules and required uniqueness/indexes.
+- `V3__application_privileges.sql`: application grants for the externally provisioned role supplied to Flyway.
+- `R__reference_data.sql`: rerunnable generic reference catalogs. Conflict updates occur only when an authoritative seed value changed, so an unchanged rerun does not churn `updated_at`.
 
-There is intentionally no documented runnable initialization command until issue #11 provides the Maven/Flyway application context, migration files, idempotent seed logic, and local PostgreSQL 18 workflow. Do not apply `001_schema.sql` repeatedly to an initialized database or edit a deployed database manually.
+Airport settings, parking layout, aircraft/manufacturer/model catalogs, physical vehicles, fuel tanks, workers, and identity links are airport-specific and are never seeded. Authorized administration workflows own them.
 
-The accepted deployment path runs a one-shot migration command from the exact backend image before application replacement. Released migrations are immutable and production fixes move forward with a new migration. See [ADR 0005](../docs/architecture/decisions/0005-portable-single-region-container-deployment.md) and the [deployment architecture](../docs/architecture/deployment.md#7-migration-and-deployment-sequence).
+## One bootstrap path
 
-Airport-specific data is never seeded. After backend implementation, an authorized administrator configures the singleton airport and adds its parking layout, aircraft/reference catalogs, fleet, fuel tanks, workers, and identity links through audited application workflows.
+Use the [backend local development guide](../backend/README.md#start-locally). From `backend/`, the database bootstrap command is:
+
+```bash
+SPRING_PROFILES_ACTIVE=migrate ./mvnw spring-boot:run
+```
+
+It uses the same migrations packaged in the application and exits after Flyway succeeds. Do not run the historical fixture, apply ad hoc SQL, or let Hibernate create/update/drop schema.
+
+## Evolution and recovery policy
+
+Versioned migrations are immutable after release. Every correction is a new forward migration. Schema changes follow expand/migrate/contract so the previous and candidate applications can coexist: expand compatibly, migrate/backfill in bounded work, switch behavior, and contract only in a later release.
+
+There are no automatic production down migrations. Application rollback is allowed only while the applied schema remains backward compatible; otherwise use a new forward fix. Restoring a database is reserved for corruption/disaster under the recovery runbook because it can discard committed operational history.
 
 ## Useful derived views
 
