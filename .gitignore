@@ -1,5 +1,6 @@
-# macOS
+# Operating system files
 .DS_Store
+Thumbs.db
 
 # Java and Maven
 *.class
@@ -8,14 +9,19 @@ target/
 **/.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.mvn/timing.properties
 
 # BlueJ files
 *.ctxt
-
-# Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
-# Package Files #
+# Package files
 *.jar
 *.war
 *.nar
@@ -24,20 +30,12 @@ target/
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# Virtual machine crash logs
 hs_err_pid*
 replay_pid*
 
-# Spring Initializr
+# Spring Initializr and Spring Tool Suite
 backend/HELP.md
-
-# Local environment files and secrets
-.env
-.env.*
-!.env.example
-!**/.env.example
-
-# Spring Tool Suite
 .apt_generated
 .classpath
 .factorypath
@@ -46,21 +44,32 @@ backend/HELP.md
 .springBeans
 .sts4-cache
 
-# IntelliJ IDEA
+# IDE and editor metadata
 .idea/
 *.iws
 *.iml
 *.ipr
+.vscode/
+*.swp
+*~
 
-# NetBeans
+# NetBeans and build output
 nbproject/private/
 nbbuild/
 dist/
 nbdist/
 .nb-gradle/
 build/
+out/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# Visual Studio Code
-.vscode/
+# Frontend dependencies and test output
+node_modules/
+coverage/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+!**/.env.example

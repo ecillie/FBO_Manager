@@ -29,11 +29,20 @@ spring:
           time_zone: UTC
   lifecycle:
     timeout-per-shutdown-phase: ${FBO_SHUTDOWN_TIMEOUT:30s}
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: UTC
+    deserialization:
+      fail-on-unknown-properties: true
+      fail-on-trailing-tokens: true
+    mapper:
+      accept-case-insensitive-enums: false
 
 server:
   address: ${FBO_API_ADDRESS:127.0.0.1}
   port: ${FBO_API_PORT:8080}
   shutdown: graceful
+  forward-headers-strategy: none
 
 management:
   server:
@@ -85,6 +94,7 @@ fbo:
     level: ${FBO_LOG_LEVEL:INFO}
   web:
     allowed-origin: ${FBO_ALLOWED_ORIGIN:http://localhost:5173}
+    maximum-body-size: ${FBO_MAXIMUM_BODY_SIZE:256KB}
   bindings:
     api:
       address: ${FBO_API_ADDRESS:127.0.0.1}

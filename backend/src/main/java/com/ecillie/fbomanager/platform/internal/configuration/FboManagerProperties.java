@@ -11,6 +11,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.ZoneId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
@@ -64,7 +65,7 @@ public record FboManagerProperties(@NotNull DeploymentEnvironment environment, @
 	public record DiagnosticLogging(@NotNull DiagnosticLevel level) {
 	}
 
-	public record Web(@NotNull URI allowedOrigin) {
+	public record Web(@NotNull URI allowedOrigin, @NotNull DataSize maximumBodySize) {
 
 		@AssertTrue(message = "allowed-origin must be an exact HTTP(S) origin without credentials, path, query, or fragment")
 		public boolean isAllowedOriginExact() {
@@ -79,6 +80,11 @@ public record FboManagerProperties(@NotNull DeploymentEnvironment environment, @
 			return supportedScheme && this.allowedOrigin.getHost() != null && this.allowedOrigin.getUserInfo() == null
 					&& (path == null || path.isEmpty()) && this.allowedOrigin.getQuery() == null
 					&& this.allowedOrigin.getFragment() == null;
+		}
+
+		@AssertTrue(message = "maximum-body-size must be between 1 KiB and 1 MiB") public boolean isMaximumBodySizeInRange() {
+			return this.maximumBodySize == null || (this.maximumBodySize.toBytes() >= DataSize.ofKilobytes(1).toBytes()
+					&& this.maximumBodySize.toBytes() <= DataSize.ofMegabytes(1).toBytes());
 		}
 	}
 

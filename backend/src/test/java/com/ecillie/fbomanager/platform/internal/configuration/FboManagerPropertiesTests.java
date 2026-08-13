@@ -21,6 +21,7 @@ class FboManagerPropertiesTests {
 			assertThat(properties.airport().timezone()).isEqualTo(ZoneId.of("America/New_York"));
 			assertThat(properties.logging().level()).isEqualTo(FboManagerProperties.DiagnosticLevel.INFO);
 			assertThat(properties.web().allowedOrigin()).hasToString("http://localhost:5173");
+			assertThat(properties.web().maximumBodySize().toKilobytes()).isEqualTo(256);
 			assertThat(properties.bindings().api().port()).isEqualTo(8080);
 			assertThat(properties.bindings().management().port()).isEqualTo(8081);
 			assertThat(properties.shutdown().timeout()).isEqualTo(Duration.ofSeconds(30));
@@ -58,8 +59,9 @@ class FboManagerPropertiesTests {
 				"fbo.environment=local", "fbo.database.url=jdbc:postgresql://localhost:5432/fbo_manager",
 				"fbo.database.username=fbo_app", "fbo.database.readiness-timeout=3s",
 				"fbo.airport.timezone=America/New_York", "fbo.logging.level=info",
-				"fbo.web.allowed-origin=http://localhost:5173", "fbo.bindings.api.address=127.0.0.1",
-				"fbo.bindings.api.port=8080", "fbo.bindings.management.address=127.0.0.1",
-				"fbo.bindings.management.port=8081", "fbo.shutdown.timeout=30s");
+				"fbo.web.allowed-origin=http://localhost:5173", "fbo.web.maximum-body-size=256KB",
+				"fbo.bindings.api.address=127.0.0.1", "fbo.bindings.api.port=8080",
+				"fbo.bindings.management.address=127.0.0.1", "fbo.bindings.management.port=8081",
+				"fbo.shutdown.timeout=30s");
 	}
 }

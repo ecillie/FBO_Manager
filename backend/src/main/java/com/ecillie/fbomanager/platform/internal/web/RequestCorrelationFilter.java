@@ -1,5 +1,6 @@
 package com.ecillie.fbomanager.platform.internal.web;
 
+import com.ecillie.fbomanager.platform.api.ApiConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,8 +22,9 @@ import org.springframework.web.servlet.HandlerMapping;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestCorrelationFilter extends OncePerRequestFilter {
 
-	static final String REQUEST_ID_HEADER = "X-Request-Id";
+	static final String REQUEST_ID_HEADER = ApiConstants.REQUEST_ID_HEADER;
 	static final String REQUEST_ID_MDC_KEY = "requestId";
+	static final String REQUEST_ID_ATTRIBUTE = RequestCorrelationFilter.class.getName() + ".requestId";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(RequestCorrelationFilter.class);
 	private static final Pattern VALID_REQUEST_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}");
@@ -39,6 +41,7 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 		Throwable failure = null;
 
 		MDC.put(REQUEST_ID_MDC_KEY, requestId);
+		request.setAttribute(REQUEST_ID_ATTRIBUTE, requestId);
 		response.setHeader(REQUEST_ID_HEADER, requestId);
 
 		try {
@@ -50,6 +53,11 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 			logCompletedRequest(request, response, startedAt, failure);
 			restoreMdc(previousRequestId);
 		}
+	}
+
+	static String requestId(HttpServletRequest request) {
+		Object value = request.getAttribute(REQUEST_ID_ATTRIBUTE);
+		return value instanceof String requestId ? requestId : UUID.randomUUID().toString();
 	}
 
 	private static String authoritativeRequestId(String candidate) {
