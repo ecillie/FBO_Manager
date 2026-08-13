@@ -154,6 +154,14 @@ Both return only `{"status":"UP"}` when healthy. Liveness measures process state
 
 `http://127.0.0.1:8080/actuator/health/liveness` returns `404`, which prevents accidental public exposure through the API listener.
 
+## Shared API transport
+
+Application routes use UTF-8 JSON below `/api/v1`. Controllers map request DTOs into application commands, and JSON success bodies use `ApiResponse` or `ApiCollectionResponse`; they never serialize JPA records or Spring Data `Page` objects. The shared platform API supplies decimal-string generated IDs and quantities, UTC metadata, bounded and allowlisted page queries, operation-scoped idempotency keys, and typed safe application errors.
+
+API responses are non-cacheable and carry restrictive content/security headers. Credentialed CORS allows only `FBO_ALLOWED_ORIGIN`; it never reflects arbitrary origins or accepts wildcards. Forwarding headers are ignored by default. A shared deployment may enable them only when the backend is private to the known edge network and that edge replaces client-supplied `Forwarded` and `X-Forwarded-*` values. Authentication, sessions, CSRF, and capability enforcement remain owned by issue #13.
+
+`GET /api/v1/platform-conventions` is the non-persistent reference collection. `POST /api/v1/platform-conventions` demonstrates DTO validation and a required `Idempotency-Key` without creating a database record. The implementation-to-test evidence is linked in the [Issue 12 API convention matrix](docs/issue-12-convention-matrix.md).
+
 ## Configuration
 
 `.env.example` contains safe local values and a password placeholder. Application configuration is immutable, typed, and validated at startup.
@@ -176,6 +184,7 @@ Both return only `{"status":"UP"}` when healthy. Liveness measures process state
 | `FBO_AIRPORT_TIMEZONE` | `America/New_York` | IANA airport timezone exposed as a `ZoneId` bean |
 | `FBO_LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 | `FBO_ALLOWED_ORIGIN` | `http://localhost:5173` | Exact HTTP(S) browser origin without credentials or a path |
+| `FBO_MAXIMUM_BODY_SIZE` | `256KB` | Maximum API request body; validated between 1 KiB and 1 MiB |
 | `FBO_API_ADDRESS` / `FBO_API_PORT` | `127.0.0.1` / `8080` | Application listener |
 | `FBO_MANAGEMENT_ADDRESS` / `FBO_MANAGEMENT_PORT` | `127.0.0.1` / `8081` | Distinct private management listener |
 | `FBO_SHUTDOWN_TIMEOUT` | `30s` | Graceful shutdown timeout; greater than zero and at most 30 seconds |
@@ -196,17 +205,17 @@ Every capability and the narrow `platform` package is a closed Spring Modulith m
 
 | Module | Allowed cross-module APIs |
 | --- | --- |
-| `administration` | none |
-| `aircraft` | none |
-| `fleet` | none |
-| `fuel` | `fleet::api`, `services::api`, `workforce::api` |
-| `operations` | none |
-| `parking` | none |
+| `administration` | `platform::api` |
+| `aircraft` | `platform::api` |
+| `fleet` | `platform::api` |
+| `fuel` | `fleet::api`, `platform::api`, `services::api`, `workforce::api` |
+| `operations` | `platform::api` |
+| `parking` | `platform::api` |
 | `platform` | none |
-| `services` | none |
-| `tasks` | `fleet::api`, `workforce::api` |
-| `visits` | `aircraft::api`, `parking::api` |
-| `workforce` | none |
+| `services` | `platform::api` |
+| `tasks` | `fleet::api`, `platform::api`, `workforce::api` |
+| `visits` | `aircraft::api`, `parking::api`, `platform::api` |
+| `workforce` | `platform::api` |
 
 `ApplicationModuleStructureTests` verifies the complete graph and closed/named-interface declarations. Its isolated invalid fixture deliberately imports another module's internal type and proves that verification fails for the intended reason.
 
@@ -223,4 +232,4 @@ Every capability and the narrow `platform` package is a closed Spring Modulith m
 - **`spotless:check` fails:** run `./mvnw spotless:apply`, review the formatting changes, and rerun `./mvnw verify`.
 - **The management endpoint is unreachable from another host:** loopback-only is the safe local default. Production deployment must explicitly set a private management address and protect it at the network boundary.
 
-CI uses the same committed wrapper, JDK 25, pinned PostgreSQL image, `clean verify`, the one-shot migration profile, and live liveness/readiness smoke checks. Local completion evidence is retained in [Issue 10 verification](docs/issue-10-verification.md) and [Issue 11 verification](docs/issue-11-verification.md).
+CI uses the same committed wrapper, JDK 25, pinned PostgreSQL image, `clean verify`, the one-shot migration profile, and live liveness/readiness smoke checks. Local completion evidence is retained in [Issue 10 verification](docs/issue-10-verification.md), [Issue 11 verification](docs/issue-11-verification.md), and the [Issue 12 API convention matrix](docs/issue-12-convention-matrix.md).

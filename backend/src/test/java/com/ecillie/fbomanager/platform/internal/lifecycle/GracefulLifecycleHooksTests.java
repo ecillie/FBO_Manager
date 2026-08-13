@@ -13,6 +13,7 @@ import org.springframework.boot.availability.AvailabilityChangeEvent;
 import org.springframework.boot.availability.ReadinessState;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.util.unit.DataSize;
 
 class GracefulLifecycleHooksTests {
 
@@ -46,7 +47,7 @@ class GracefulLifecycleHooksTests {
 						"test-only-password", Duration.ofSeconds(3)),
 				new FboManagerProperties.Airport(ZoneId.of("America/New_York")),
 				new FboManagerProperties.DiagnosticLogging(FboManagerProperties.DiagnosticLevel.INFO),
-				new FboManagerProperties.Web(URI.create("http://localhost:5173")),
+				new FboManagerProperties.Web(URI.create("http://localhost:5173"), DataSize.ofKilobytes(256)),
 				new FboManagerProperties.Bindings(new FboManagerProperties.Binding("127.0.0.1", 8080),
 						new FboManagerProperties.Binding("127.0.0.1", 8081)),
 				new FboManagerProperties.Shutdown(Duration.ofSeconds(30)));
