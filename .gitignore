@@ -22,3 +22,39 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# IDE and editor metadata
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+
+# Java build output
+target/
+build/
+out/
+
+# Maven release and wrapper artifacts
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.mvn/timing.properties
+
+# Frontend dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Local environment files (keep shareable examples)
+.env
+.env.*
+!.env.example
+!.env.*.example
