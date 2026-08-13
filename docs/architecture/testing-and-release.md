@@ -49,7 +49,7 @@ All state transitions also test terminal-state immutability, missing timestamps,
 
 - Builders and scenario fixtures use named defaults, explicit controlled overrides, a fixed/injectable `Clock`, deterministic UUID/random seeds, and unique test identifiers. Tests never depend on wall-clock timing, execution order, or another test's IDs.
 - Unit/component tests own their state in process. PostgreSQL integration classes use a fresh database/schema or transaction rollback only when rollback cannot mask commit, trigger, connection, or concurrency behavior. Concurrency/API/E2E tests use committed fixture setup and explicit cleanup or a disposable database.
-- CI provisions PostgreSQL 18 from a repository-pinned image digest. Tests apply real Flyway migrations from empty state; they do not build schema through ORM auto-DDL or use `db/init/001_schema.sql` as a parallel runtime path after the migration baseline exists.
+- CI provisions PostgreSQL 18 from a repository-pinned image digest. Tests apply real Flyway migrations from empty state; they do not build schema through ORM auto-DDL or use the historical test fixture as a parallel runtime path.
 - Reference seeds are rerun to prove idempotence. Fixture data is separate from reusable application reference seed data.
 - Parallel tests use independent databases/schemas and ports allocated by the test framework. Synchronize concurrency contenders with latches/advisory test barriers and bounded timeouts, never arbitrary sleeps.
 - Non-production tests use synthetic people, contacts, aircraft, and identity subjects. Production data, tokens, backup contents, and secrets are prohibited in local/CI fixtures and snapshots.

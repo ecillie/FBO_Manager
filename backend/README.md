@@ -17,7 +17,7 @@ The controlling design is [ADR 0002: Backend application architecture and depend
 
 Use `./mvnw` for every Maven command. A system Maven installation is neither required nor used by CI.
 
-The current dependency set is deliberately small: Spring MVC, validation, Actuator, Spring Modulith, structured logging supplied by Spring Boot, and the runtime PostgreSQL driver used by readiness. Persistence, Flyway, and application workflows are added by their follow-up tickets.
+The persistence foundation uses the PostgreSQL JDBC driver, HikariCP, Spring Data JPA/Hibernate, Spring JDBC `JdbcClient`, and Flyway. JPA mappings are validated against the migrated schema and never generate DDL. Application workflows and persistence adapters are added by their follow-up tickets.
 
 ## Prerequisites
 
@@ -56,17 +56,18 @@ Start the pinned database and wait for its health check:
 docker compose --env-file .env up --detach --wait postgres
 ```
 
-Export the application settings and run the service:
+Export the settings, run the one-shot migration profile, and then run the service:
 
 ```bash
 set -a
 source .env
 set +a
 
+SPRING_PROFILES_ACTIVE=migrate ./mvnw spring-boot:run
 ./mvnw spring-boot:run
 ```
 
-The application rejects missing or invalid configuration during startup. Stop it with `Ctrl+C`; graceful shutdown refuses new traffic and allows active requests up to the configured timeout.
+The migration command validates checksums, applies pending versioned migrations plus the idempotent reference seed, and exits. The ordinary application has Flyway disabled, validates JPA mappings with `ddl-auto=validate`, and rejects missing or invalid configuration. Stop it with `Ctrl+C`; graceful shutdown refuses new traffic and allows active requests up to the configured timeout.
 
 Stop PostgreSQL while preserving its local data:
 
@@ -78,9 +79,33 @@ To intentionally erase the local database and recreate it from scratch:
 
 ```bash
 docker compose --env-file .env down --volumes
+docker compose --env-file .env up --detach --wait postgres
+SPRING_PROFILES_ACTIVE=migrate ./mvnw spring-boot:run
 ```
 
-The second command permanently deletes the Compose-managed local database volume.
+`down --volumes` permanently deletes only this Compose project's named `postgres-data` volume. It does not target another PostgreSQL database or Docker volume. The following two commands recreate the project database and apply the authoritative Flyway path.
+
+## Migrations and database identities
+
+The only runtime schema source is [`src/main/resources/db/migration`](src/main/resources/db/migration):
+
+| Migration | Responsibility |
+| --- | --- |
+| `V1__baseline_schema.sql` | Flyway-compatible conversion of the former `db/init/001_schema.sql`, preserving all PostgreSQL enums, tables, constraints, partial indexes, functions, triggers, sequences, and current-state views. |
+| `V2__transactional_idempotency.sql` | Transactional command-result persistence, namespaced key uniqueness, retention constraints, and cleanup/ledger indexes. |
+| `V3__application_privileges.sql` | Least-privilege grants to the externally created role named by `FBO_APPLICATION_DATABASE_ROLE`; denies schema creation, Flyway-history access, and fuel-ledger mutation. |
+| `R__reference_data.sql` | Idempotent generic fuel, aircraft-category/operation, service, vehicle-type, and worker-role catalogs. Airport-specific data is never seeded. |
+
+A released `V*` migration is immutable. Never repair a checksum by editing an applied file or manually patch a shared database. Use a new forward migration and expand/migrate/contract: add backward-compatible structures first, backfill in bounded work, switch application behavior, and remove obsolete structures only in a later release. There are no production down migrations. Roll back the application only when the migrated schema remains backward compatible; otherwise deploy a new forward fix. Database restore is a disaster-recovery decision, not an ordinary release rollback.
+
+Shared environments create the migration and application login roles outside Flyway and inject separate credentials. The migration role owns/changes the schema and Flyway history and is used only with `SPRING_PROFILES_ACTIVE=migrate`. The application role runs the API and cannot alter schema or migration history. Run the migration profile from the exact candidate JAR/image before replacing the API:
+
+```bash
+SPRING_PROFILES_ACTIVE=migrate java -jar target/fbo-manager-0.0.1-SNAPSHOT.jar
+java -jar target/fbo-manager-0.0.1-SNAPSHOT.jar
+```
+
+The local Compose container intentionally compromises by using `fbo_app` as both database owner/migration identity and application identity. This keeps bootstrap reproducible without storing a second local superuser secret; the PostgreSQL 18 integration suite proves the separated shared-environment grants with distinct roles.
 
 ## Developer commands
 
@@ -93,8 +118,11 @@ Run these from `backend/` with JDK 25 active:
 # Check formatting without changing files.
 ./mvnw spotless:check
 
-# Run all tests, including module-boundary and health-contract tests.
+# Run all tests, including PostgreSQL 18 migration and data-access tests.
 ./mvnw test
+
+# Run only the PostgreSQL 18 migration/data-access acceptance suite.
+./mvnw -Dtest=PostgreSqlDataAccessIntegrationTests test
 
 # Check formatting, test, verify module rules, and build the executable JAR.
 ./mvnw verify
@@ -139,6 +167,12 @@ Both return only `{"status":"UP"}` when healthy. Liveness measures process state
 | `FBO_DATABASE_USERNAME` | `fbo_app` | Application and local container database user |
 | `FBO_DATABASE_PASSWORD` | no safe default | Required secret; the application refuses to start when blank |
 | `FBO_DATABASE_READINESS_TIMEOUT` | `3s` | Database probe timeout; greater than zero and at most five seconds |
+| `FBO_DATABASE_MAXIMUM_POOL_SIZE` / `FBO_DATABASE_MINIMUM_IDLE` | `10` / `2` | Per-instance Hikari pool bounds |
+| `FBO_DATABASE_CONNECTION_TIMEOUT` | `30000` | Hikari acquisition timeout in milliseconds |
+| `FBO_MIGRATION_DATABASE_URL` | local application URL | Credential-free JDBC URL used only by the migration profile |
+| `FBO_MIGRATION_DATABASE_USERNAME` / `FBO_MIGRATION_DATABASE_PASSWORD` | local application credential | Separate schema-owner credential in shared environments |
+| `FBO_APPLICATION_DATABASE_ROLE` | `fbo_app` | Existing PostgreSQL role that receives application grants |
+| `FBO_MIGRATIONS_ENABLED` | `false` | Emergency/test override; ordinary API startup never runs migrations |
 | `FBO_AIRPORT_TIMEZONE` | `America/New_York` | IANA airport timezone exposed as a `ZoneId` bean |
 | `FBO_LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 | `FBO_ALLOWED_ORIGIN` | `http://localhost:5173` | Exact HTTP(S) browser origin without credentials or a path |
@@ -184,7 +218,9 @@ Every capability and the narrow `platform` package is a closed Spring Modulith m
 - **Port 5432, 8080, or 8081 is already allocated:** stop the conflicting process or change the matching environment variable. Keep API and management bindings distinct.
 - **Docker cannot connect to the daemon:** start Docker Desktop/Engine, then rerun the Compose command.
 - **Liveness is up but readiness is down:** inspect `docker compose --env-file .env ps`, verify PostgreSQL is healthy, and confirm the JDBC URL, user, password, and mapped port agree.
+- **Startup reports a missing table or Hibernate validation error:** run `SPRING_PROFILES_ACTIVE=migrate ./mvnw spring-boot:run` with migration credentials, then restart the ordinary application. Do not enable Flyway on a shared API instance.
+- **Flyway says the application role does not exist:** create the shared-environment application login through the platform's secret/identity process and set `FBO_APPLICATION_DATABASE_ROLE` to that simple lowercase PostgreSQL identifier.
 - **`spotless:check` fails:** run `./mvnw spotless:apply`, review the formatting changes, and rerun `./mvnw verify`.
 - **The management endpoint is unreachable from another host:** loopback-only is the safe local default. Production deployment must explicitly set a private management address and protect it at the network boundary.
 
-CI uses the same committed wrapper, JDK 25, pinned PostgreSQL image, `clean verify`, and live liveness/readiness smoke checks. Local completion evidence is retained in [Issue 10 verification](docs/issue-10-verification.md).
+CI uses the same committed wrapper, JDK 25, pinned PostgreSQL image, `clean verify`, the one-shot migration profile, and live liveness/readiness smoke checks. Local completion evidence is retained in [Issue 10 verification](docs/issue-10-verification.md) and [Issue 11 verification](docs/issue-11-verification.md).

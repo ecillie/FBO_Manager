@@ -1,6 +1,32 @@
 spring:
   application:
     name: fbo-manager
+  datasource:
+    url: ${FBO_DATABASE_URL:jdbc:postgresql://localhost:5432/fbo_manager}
+    username: ${FBO_DATABASE_USERNAME:fbo_app}
+    password: ${FBO_DATABASE_PASSWORD:}
+    hikari:
+      pool-name: fbo-application
+      maximum-pool-size: ${FBO_DATABASE_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${FBO_DATABASE_MINIMUM_IDLE:2}
+      connection-timeout: ${FBO_DATABASE_CONNECTION_TIMEOUT:30000}
+  flyway:
+    enabled: ${FBO_MIGRATIONS_ENABLED:false}
+    url: ${FBO_MIGRATION_DATABASE_URL:${FBO_DATABASE_URL:jdbc:postgresql://localhost:5432/fbo_manager}}
+    user: ${FBO_MIGRATION_DATABASE_USERNAME:${FBO_DATABASE_USERNAME:fbo_app}}
+    password: ${FBO_MIGRATION_DATABASE_PASSWORD:${FBO_DATABASE_PASSWORD:}}
+    locations: classpath:db/migration
+    placeholders:
+      applicationRole: ${FBO_APPLICATION_DATABASE_ROLE:${FBO_DATABASE_USERNAME:fbo_app}}
+    validate-migration-naming: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
   lifecycle:
     timeout-per-shutdown-phase: ${FBO_SHUTDOWN_TIMEOUT:30s}
 

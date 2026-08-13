@@ -2,13 +2,12 @@ package com.ecillie.fbomanager.platform.internal.health;
 
 import com.ecillie.fbomanager.platform.internal.configuration.FboManagerProperties;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +26,8 @@ public class PostgresReadinessHealthIndicator implements HealthIndicator {
 	private final AtomicReference<Status> previousStatus = new AtomicReference<>(Status.UNKNOWN);
 
 	@Autowired
-	public PostgresReadinessHealthIndicator(FboManagerProperties properties) {
-		this(properties.database(), PostgresReadinessHealthIndicator::queryDatabase);
+	public PostgresReadinessHealthIndicator(FboManagerProperties properties, DataSource dataSource) {
+		this(properties.database(), ignored -> queryDatabase(dataSource, properties.database().readinessTimeout()));
 	}
 
 	PostgresReadinessHealthIndicator(FboManagerProperties.Database database, SqlProbe probe) {
@@ -70,17 +69,10 @@ public class PostgresReadinessHealthIndicator implements HealthIndicator {
 		}
 	}
 
-	private static boolean queryDatabase(FboManagerProperties.Database database) throws SQLException {
-		Properties connectionProperties = new Properties();
-		connectionProperties.setProperty("user", database.username());
-		connectionProperties.setProperty("password", database.password());
-		connectionProperties.setProperty("connectTimeout", timeoutSeconds(database.readinessTimeout()));
-		connectionProperties.setProperty("socketTimeout", timeoutSeconds(database.readinessTimeout()));
-		connectionProperties.setProperty("ApplicationName", "fbo-manager-readiness");
-
-		try (Connection connection = DriverManager.getConnection(database.url(), connectionProperties);
+	private static boolean queryDatabase(DataSource dataSource, Duration timeout) throws SQLException {
+		try (Connection connection = dataSource.getConnection();
 				PreparedStatement statement = connection.prepareStatement("SELECT 1")) {
-			statement.setQueryTimeout(Integer.parseInt(timeoutSeconds(database.readinessTimeout())));
+			statement.setQueryTimeout(Integer.parseInt(timeoutSeconds(timeout)));
 
 			try (ResultSet result = statement.executeQuery()) {
 				return result.next() && result.getInt(1) == 1;
