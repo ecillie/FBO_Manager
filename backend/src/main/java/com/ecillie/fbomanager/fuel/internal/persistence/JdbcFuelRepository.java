@@ -37,6 +37,10 @@ public class JdbcFuelRepository implements FuelRepository {
 	private static final Map<String, String> SORTS = Map.of("fuelTransactionId", "fuel_transaction_id", "occurredAt",
 			"occurred_at", "fuelTankName", "fuel_tank_name", "fuelTruckIdentifier", "fuel_truck_identifier",
 			"transactionType", "transaction_type");
+	private static final Map<String, String> TANK_SORTS = Map.of("name", "name", "fuelTypeCode", "fuel_type_code",
+			"currentQuantity", "current_quantity");
+	private static final Map<String, String> TRUCK_SORTS = Map.of("identifier", "service_vehicle_identifier",
+			"fuelTypeCode", "fuel_type_code", "currentQuantity", "current_quantity");
 	private final JdbcClient jdbc;
 	private final PersistenceExceptionMapper failures;
 
@@ -59,6 +63,16 @@ public class JdbcFuelRepository implements FuelRepository {
 	}
 
 	@Override
+	public Optional<FuelType> findType(String code) {
+		return this.jdbc.sql("""
+				SELECT code, name, default_unit, is_active, created_at, updated_at
+				FROM fuel_types WHERE code = :code
+				""").param("code", NaturalKey.code(code)).query((row, ignored) -> new FuelType(row.getString("code"),
+				row.getString("name"), row.getString("default_unit"), row.getBoolean("is_active"), audit(row)))
+				.optional();
+	}
+
+	@Override
 	public FuelTank saveTank(FuelTank tank) {
 		return translated(() -> this.jdbc.sql("""
 				INSERT INTO fuel_tanks (name, fuel_type_code, capacity, quantity_unit, notes, is_active)
@@ -74,6 +88,18 @@ public class JdbcFuelRepository implements FuelRepository {
 						FixedPrecisionQuantity.from(row.getBigDecimal("capacity")), row.getString("quantity_unit"),
 						row.getString("notes"), row.getBoolean("is_active"), audit(row)))
 				.single());
+	}
+
+	@Override
+	public Optional<FuelTank> findTank(String name) {
+		return this.jdbc.sql("""
+				SELECT name, fuel_type_code, capacity, quantity_unit, notes, is_active, created_at, updated_at
+				FROM fuel_tanks WHERE name = :name
+				""").param("name", NaturalKey.name(name))
+				.query((row, ignored) -> new FuelTank(row.getString("name"), row.getString("fuel_type_code"),
+						FixedPrecisionQuantity.from(row.getBigDecimal("capacity")), row.getString("quantity_unit"),
+						row.getString("notes"), row.getBoolean("is_active"), audit(row)))
+				.optional();
 	}
 
 	@Override
@@ -139,6 +165,26 @@ public class JdbcFuelRepository implements FuelRepository {
 			}
 			return findTruckBalance(normalized);
 		});
+	}
+
+	@Override
+	public RepositoryPage<TankBalance> findTankBalances(RepositoryPageRequest page) {
+		String order = TANK_SORTS.get(page.requireAllowedSort(TANK_SORTS.keySet()));
+		long total = this.jdbc.sql("SELECT count(*) FROM fuel_tank_balances").query(Long.class).single();
+		String sql = "SELECT * FROM fuel_tank_balances ORDER BY " + order + " " + page.direction()
+				+ ", name ASC LIMIT :limit OFFSET :offset";
+		return new RepositoryPage<>(this.jdbc.sql(sql).param("limit", page.limit()).param("offset", page.offset())
+				.query(JdbcFuelRepository::tankBalance).list(), page.offset(), page.limit(), total);
+	}
+
+	@Override
+	public RepositoryPage<TruckBalance> findTruckBalances(RepositoryPageRequest page) {
+		String order = TRUCK_SORTS.get(page.requireAllowedSort(TRUCK_SORTS.keySet()));
+		long total = this.jdbc.sql("SELECT count(*) FROM fuel_truck_balances").query(Long.class).single();
+		String sql = "SELECT * FROM fuel_truck_balances ORDER BY " + order + " " + page.direction()
+				+ ", service_vehicle_identifier ASC LIMIT :limit OFFSET :offset";
+		return new RepositoryPage<>(this.jdbc.sql(sql).param("limit", page.limit()).param("offset", page.offset())
+				.query(JdbcFuelRepository::truckBalance).list(), page.offset(), page.limit(), total);
 	}
 
 	@Override

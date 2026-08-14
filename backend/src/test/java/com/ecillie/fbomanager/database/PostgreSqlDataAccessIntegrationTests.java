@@ -14,7 +14,11 @@ import com.ecillie.fbomanager.fuel.api.FuelModels;
 import com.ecillie.fbomanager.fuel.api.FuelRepository;
 import com.ecillie.fbomanager.parking.api.ParkingModels;
 import com.ecillie.fbomanager.parking.api.ParkingRepository;
+import com.ecillie.fbomanager.platform.api.ActorContext;
+import com.ecillie.fbomanager.platform.api.Capability;
+import com.ecillie.fbomanager.platform.api.DomainConflictException;
 import com.ecillie.fbomanager.platform.api.FixedPrecisionQuantity;
+import com.ecillie.fbomanager.platform.api.IdempotencyKey;
 import com.ecillie.fbomanager.platform.api.OperationalStatus;
 import com.ecillie.fbomanager.platform.api.PersistenceFailure;
 import com.ecillie.fbomanager.platform.api.RepositoryPageRequest;
@@ -25,6 +29,7 @@ import com.ecillie.fbomanager.tasks.api.TaskModels;
 import com.ecillie.fbomanager.tasks.api.TaskRepository;
 import com.ecillie.fbomanager.visits.api.VisitModels;
 import com.ecillie.fbomanager.visits.api.VisitRepository;
+import com.ecillie.fbomanager.visits.api.VisitService;
 import com.ecillie.fbomanager.workforce.api.WorkforceModels;
 import com.ecillie.fbomanager.workforce.api.WorkforceRepository;
 import com.zaxxer.hikari.HikariDataSource;
@@ -110,6 +115,9 @@ class PostgreSqlDataAccessIntegrationTests {
 
 	@Autowired
 	private VisitRepository visitRepository;
+
+	@Autowired
+	private VisitService visitService;
 
 	@Autowired
 	private ServiceRepository serviceRepository;
@@ -339,6 +347,35 @@ class PostgreSqlDataAccessIntegrationTests {
 			return customer.customerId();
 		});
 		assertThat(this.administrationRepository.findCustomer(rolledBackId)).isEmpty();
+	}
+
+	@Test
+	void applicationServiceCommitsOneIdempotentEffectAndRollsBackAConflictingClaim() {
+		this.aircraftRepository
+				.saveManufacturer(new AircraftModels.AircraftManufacturer("Workflow Manufacturer", null));
+		AircraftModels.AircraftModelKey modelKey = new AircraftModels.AircraftModelKey("Workflow Manufacturer",
+				"Workflow Model");
+		this.aircraftRepository.saveModel(new AircraftModels.AircraftModel(modelKey, "JET", "WF01", true, null));
+		this.aircraftRepository.saveAircraft(new AircraftModels.Aircraft("N700WF", modelKey, "GENERAL_AVIATION",
+				"JET_A", null, null, null, true, null));
+		ActorContext actor = new ActorContext("integration-dispatcher", java.util.Set.of(Capability.VISITS_WRITE));
+		VisitService.CreateVisit command = new VisitService.CreateVisit("N700WF", Instant.parse("2026-08-15T12:00:00Z"),
+				Instant.parse("2026-08-15T14:00:00Z"), null);
+		IdempotencyKey committedKey = new IdempotencyKey("workflow-create-0001");
+
+		var created = this.visitService.create(command, actor, committedKey);
+		var replayed = this.visitService.create(command, actor, committedKey);
+
+		assertThat(created.replayed()).isFalse();
+		assertThat(replayed.replayed()).isTrue();
+		assertThat(replayed.value().visitId()).isEqualTo(created.value().visitId());
+		assertThat(this.jdbcClient.sql("SELECT count(*) FROM aircraft_visits WHERE tail_number = 'N700WF'")
+				.query(Long.class).single()).isOne();
+		IdempotencyKey conflictingKey = new IdempotencyKey("workflow-create-0002");
+		assertThatThrownBy(() -> this.visitService.create(command, actor, conflictingKey))
+				.isInstanceOf(DomainConflictException.class);
+		assertThat(this.jdbcClient.sql("SELECT count(*) FROM idempotency_records WHERE idempotency_key = :key")
+				.param("key", conflictingKey.value()).query(Long.class).single()).isZero();
 	}
 
 	@Test

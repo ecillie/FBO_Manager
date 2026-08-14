@@ -30,5 +30,8 @@ public interface AircraftRepository {
 
 	Optional<Aircraft> findAircraft(String tailNumber);
 
+	/** Locks an aircraft before creating an active visit. */
+	Optional<Aircraft> lockAircraft(String tailNumber);
+
 	RepositoryPage<Aircraft> findAircraft(AircraftFilter filter, RepositoryPageRequest page);
 }

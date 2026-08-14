@@ -9,9 +9,9 @@ import com.ecillie.fbomanager.platform.api.FixedPrecisionQuantity;
 import com.ecillie.fbomanager.platform.api.GeneratedId;
 import com.ecillie.fbomanager.platform.api.IdempotencyKey;
 import com.ecillie.fbomanager.platform.api.IdempotentOperation;
-import com.ecillie.fbomanager.platform.internal.reference.ConventionReferenceApplicationService;
 import com.ecillie.fbomanager.platform.internal.reference.ConventionReferenceCommand;
 import com.ecillie.fbomanager.platform.internal.reference.ConventionReferenceResult;
+import com.ecillie.fbomanager.platform.internal.reference.ConventionReferenceUseCase;
 import com.ecillie.fbomanager.platform.internal.reference.QuantityUnit;
 import com.ecillie.fbomanager.platform.internal.reference.ReferenceStatus;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,10 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = ApiConstants.V1_PATH + "/platform-conventions", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ConventionReferenceController {
 
-	private final ConventionReferenceApplicationService service;
+	private final ConventionReferenceUseCase service;
 	private final ApiResponseFactory responses;
 
-	public ConventionReferenceController(ConventionReferenceApplicationService service, ApiResponseFactory responses) {
+	public ConventionReferenceController(ConventionReferenceUseCase service, ApiResponseFactory responses) {
 		this.service = service;
 		this.responses = responses;
 	}

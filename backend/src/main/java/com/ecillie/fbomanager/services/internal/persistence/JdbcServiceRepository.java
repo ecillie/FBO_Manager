@@ -2,6 +2,7 @@ package com.ecillie.fbomanager.services.internal.persistence;
 
 import com.ecillie.fbomanager.platform.api.AuditMetadata;
 import com.ecillie.fbomanager.platform.api.FixedPrecisionQuantity;
+import com.ecillie.fbomanager.platform.api.NaturalKey;
 import com.ecillie.fbomanager.platform.api.PersistenceExceptionMapper;
 import com.ecillie.fbomanager.platform.api.RepositoryPage;
 import com.ecillie.fbomanager.platform.api.RepositoryPageRequest;
@@ -55,6 +56,18 @@ public class JdbcServiceRepository implements ServiceRepository {
 						row.getBoolean("is_fuel_service"), row.getString("default_unit"), row.getBoolean("is_active"),
 						audit(row)))
 				.single());
+	}
+
+	@Override
+	public Optional<ServiceType> findType(String code) {
+		return this.jdbc.sql("""
+				SELECT code, name, is_fuel_service, default_unit, is_active, created_at, updated_at
+				FROM service_types WHERE code = :code
+				""").param("code", NaturalKey.code(code))
+				.query((row, ignored) -> new ServiceType(row.getString("code"), row.getString("name"),
+						row.getBoolean("is_fuel_service"), row.getString("default_unit"), row.getBoolean("is_active"),
+						audit(row)))
+				.optional();
 	}
 
 	@Override

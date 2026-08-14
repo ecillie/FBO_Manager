@@ -8,12 +8,13 @@ import org.springframework.stereotype.Service;
  * resource routes.
  */
 @Service
-public class ConventionReferenceApplicationService {
+public class ConventionReferenceApplicationService implements ConventionReferenceUseCase {
 
 	static final long REFERENCE_ID = 9_007_199_254_740_993L;
 
 	private final AtomicLong invocationCount = new AtomicLong();
 
+	@Override
 	public ConventionReferenceResult handle(ConventionReferenceCommand command) {
 		this.invocationCount.incrementAndGet();
 		return new ConventionReferenceResult(REFERENCE_ID, command.referenceCode(), command.status(),
