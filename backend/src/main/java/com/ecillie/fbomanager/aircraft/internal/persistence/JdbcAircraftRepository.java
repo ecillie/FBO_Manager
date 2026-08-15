@@ -24,6 +24,8 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class JdbcAircraftRepository implements AircraftRepository {
@@ -132,7 +134,19 @@ public class JdbcAircraftRepository implements AircraftRepository {
 
 	@Override
 	public Optional<Aircraft> findAircraft(String tailNumber) {
-		return this.jdbc.sql("SELECT " + AIRCRAFT_COLUMNS + " FROM aircraft WHERE tail_number = :tail")
+		return aircraftQuery(tailNumber, false);
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Optional<Aircraft> lockAircraft(String tailNumber) {
+		return translated(() -> aircraftQuery(tailNumber, true));
+	}
+
+	private Optional<Aircraft> aircraftQuery(String tailNumber, boolean lock) {
+		return this.jdbc
+				.sql("SELECT " + AIRCRAFT_COLUMNS + " FROM aircraft WHERE tail_number = :tail"
+						+ (lock ? " FOR UPDATE" : ""))
 				.param("tail", NaturalKey.identifier(tailNumber)).query(JdbcAircraftRepository::aircraft).optional();
 	}
 

@@ -58,6 +58,17 @@ public class JdbcFleetRepository implements FleetRepository {
 	}
 
 	@Override
+	public Optional<ServiceVehicleType> findType(String code) {
+		return this.jdbc.sql("""
+				SELECT code, name, is_fuel_truck, created_at, updated_at
+				FROM service_vehicle_types WHERE code = :code
+				""").param("code", NaturalKey.code(code))
+				.query((row, ignored) -> new ServiceVehicleType(row.getString("code"), row.getString("name"),
+						row.getBoolean("is_fuel_truck"), audit(row)))
+				.optional();
+	}
+
+	@Override
 	public ServiceVehicle saveVehicle(ServiceVehicle vehicle) {
 		return translated(() -> this.jdbc
 				.sql("""
@@ -90,6 +101,18 @@ public class JdbcFleetRepository implements FleetRepository {
 	}
 
 	@Override
+	public Optional<FuelTruck> findFuelTruck(String vehicleIdentifier) {
+		return this.jdbc.sql("""
+				SELECT service_vehicle_identifier, fuel_type_code, capacity, quantity_unit, created_at, updated_at
+				FROM fuel_trucks WHERE service_vehicle_identifier = :identifier
+				""").param("identifier", NaturalKey.identifier(vehicleIdentifier))
+				.query((row, ignored) -> new FuelTruck(row.getString("service_vehicle_identifier"),
+						row.getString("fuel_type_code"), FixedPrecisionQuantity.from(row.getBigDecimal("capacity")),
+						row.getString("quantity_unit"), audit(row)))
+				.optional();
+	}
+
+	@Override
 	public Optional<ServiceVehicle> findVehicle(String identifier) {
 		return vehicleQuery(identifier, false);
 	}
@@ -105,6 +128,15 @@ public class JdbcFleetRepository implements FleetRepository {
 				.sql("SELECT " + VEHICLE_COLUMNS + " FROM service_vehicles WHERE identifier = :identifier"
 						+ (lock ? " FOR UPDATE" : ""))
 				.param("identifier", NaturalKey.identifier(identifier)).query(JdbcFleetRepository::vehicle).optional();
+	}
+
+	@Override
+	public Optional<VehicleStatus> findCurrentStatus(String identifier) {
+		return this.jdbc.sql("""
+				SELECT identifier, service_vehicle_type_code, current_status, current_tail_number, current_task_id
+				FROM service_vehicle_current_status WHERE identifier = :identifier
+				""").param("identifier", NaturalKey.identifier(identifier)).query(JdbcFleetRepository::vehicleStatus)
+				.optional();
 	}
 
 	@Override
@@ -135,12 +167,7 @@ public class JdbcFleetRepository implements FleetRepository {
 				+ from + query.where() + " ORDER BY " + order + " " + page.direction()
 				+ ", s.identifier ASC LIMIT :limit OFFSET :offset";
 		return new RepositoryPage<>(
-				this.jdbc.sql(sql).params(query.params())
-						.query((row, ignored) -> new VehicleStatus(row.getString("identifier"),
-								row.getString("service_vehicle_type_code"),
-								VehicleCurrentState.valueOf(row.getString("current_status")),
-								row.getString("current_tail_number"), nullableLong(row, "current_task_id")))
-						.list(),
+				this.jdbc.sql(sql).params(query.params()).query(JdbcFleetRepository::vehicleStatus).list(),
 				page.offset(), page.limit(), total);
 	}
 
@@ -174,6 +201,12 @@ public class JdbcFleetRepository implements FleetRepository {
 		return new ServiceVehicle(row.getString("identifier"), row.getString("service_vehicle_type_code"),
 				OperationalStatus.valueOf(row.getString("operational_status")), row.getString("notes"),
 				row.getBoolean("is_active"), audit(row));
+	}
+
+	private static VehicleStatus vehicleStatus(ResultSet row, int ignored) throws SQLException {
+		return new VehicleStatus(row.getString("identifier"), row.getString("service_vehicle_type_code"),
+				VehicleCurrentState.valueOf(row.getString("current_status")), row.getString("current_tail_number"),
+				nullableLong(row, "current_task_id"));
 	}
 
 	private static Long nullableLong(ResultSet row, String column) throws SQLException {

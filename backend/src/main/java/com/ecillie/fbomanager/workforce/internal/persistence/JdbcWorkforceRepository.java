@@ -112,6 +112,24 @@ public class JdbcWorkforceRepository implements WorkforceRepository {
 	}
 
 	@Override
+	public Optional<WorkerShift> findShift(long shiftId) {
+		return shiftQuery(shiftId, false);
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Optional<WorkerShift> lockShift(long shiftId) {
+		return translated(() -> shiftQuery(shiftId, true));
+	}
+
+	private Optional<WorkerShift> shiftQuery(long shiftId, boolean lock) {
+		return this.jdbc
+				.sql("SELECT " + SHIFT_COLUMNS + " FROM worker_shifts WHERE shift_id = :id"
+						+ (lock ? " FOR UPDATE" : ""))
+				.param("id", shiftId).query(JdbcWorkforceRepository::shift).optional();
+	}
+
+	@Override
 	public Optional<Worker> findWorker(long workerId) {
 		return workerQuery(workerId, false);
 	}
@@ -126,6 +144,14 @@ public class JdbcWorkforceRepository implements WorkforceRepository {
 		return this.jdbc
 				.sql("SELECT " + WORKER_COLUMNS + " FROM workers WHERE worker_id = :id" + (lock ? " FOR UPDATE" : ""))
 				.param("id", workerId).query(JdbcWorkforceRepository::worker).optional();
+	}
+
+	@Override
+	public Optional<WorkerStatus> findCurrentStatus(long workerId) {
+		return this.jdbc.sql("""
+				SELECT worker_id, first_name, last_name, role_name, is_at_work, current_task_id, current_task_title
+				FROM worker_current_status WHERE worker_id = :worker
+				""").param("worker", workerId).query(JdbcWorkforceRepository::workerStatus).optional();
 	}
 
 	@Override
@@ -186,11 +212,7 @@ public class JdbcWorkforceRepository implements WorkforceRepository {
 				+ from + query.where() + " ORDER BY " + order + " " + page.direction()
 				+ ", s.worker_id ASC LIMIT :limit OFFSET :offset";
 		return new RepositoryPage<>(
-				this.jdbc.sql(sql).params(query.params())
-						.query((row, ignored) -> new WorkerStatus(row.getLong("worker_id"), row.getString("first_name"),
-								row.getString("last_name"), row.getString("role_name"), row.getBoolean("is_at_work"),
-								nullableLong(row, "current_task_id"), row.getString("current_task_title")))
-						.list(),
+				this.jdbc.sql(sql).params(query.params()).query(JdbcWorkforceRepository::workerStatus).list(),
 				page.offset(), page.limit(), total);
 	}
 
@@ -229,6 +251,12 @@ public class JdbcWorkforceRepository implements WorkforceRepository {
 		return new Worker(row.getLong("worker_id"), row.getString("role_name"), row.getString("first_name"),
 				row.getString("last_name"), row.getString("phone"), row.getString("email"), row.getBoolean("is_active"),
 				audit(row));
+	}
+
+	private static WorkerStatus workerStatus(ResultSet row, int ignored) throws SQLException {
+		return new WorkerStatus(row.getLong("worker_id"), row.getString("first_name"), row.getString("last_name"),
+				row.getString("role_name"), row.getBoolean("is_at_work"), nullableLong(row, "current_task_id"),
+				row.getString("current_task_title"));
 	}
 
 	private static WorkerShift shift(ResultSet row, int ignored) throws SQLException {

@@ -14,7 +14,11 @@ public interface FuelRepository {
 
 	FuelType saveType(FuelType type);
 
+	Optional<FuelType> findType(String code);
+
 	FuelTank saveTank(FuelTank tank);
+
+	Optional<FuelTank> findTank(String name);
 
 	FuelLedgerEntry append(FuelLedgerEntry entry);
 
@@ -27,6 +31,10 @@ public interface FuelRepository {
 	Optional<TankBalance> lockTankBalance(String tankName);
 
 	Optional<TruckBalance> lockTruckBalance(String vehicleIdentifier);
+
+	RepositoryPage<TankBalance> findTankBalances(RepositoryPageRequest page);
+
+	RepositoryPage<TruckBalance> findTruckBalances(RepositoryPageRequest page);
 
 	RepositoryPage<FuelLedgerEntry> findLedger(LedgerFilter filter, RepositoryPageRequest page);
 }

@@ -18,9 +18,15 @@ public interface WorkforceRepository {
 
 	WorkerShift saveShift(WorkerShift shift);
 
+	Optional<WorkerShift> findShift(long shiftId);
+
+	Optional<WorkerShift> lockShift(long shiftId);
+
 	Optional<Worker> findWorker(long workerId);
 
 	Optional<Worker> lockWorker(long workerId);
+
+	Optional<WorkerStatus> findCurrentStatus(long workerId);
 
 	RepositoryPage<Worker> findWorkers(WorkerFilter filter, RepositoryPageRequest page);
 

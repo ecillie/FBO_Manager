@@ -1,6 +1,7 @@
 package com.ecillie.fbomanager.platform.internal.web;
 
 import com.ecillie.fbomanager.platform.api.ApiException;
+import com.ecillie.fbomanager.platform.api.DomainException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -51,6 +52,23 @@ public class ApiExceptionHandler {
 			headers.set(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, exception.retryAfter().toSeconds())));
 		}
 		return response(exception.status(), exception.code(), exception.getMessage(), exception.retryable(), null,
+				emptyToNull(exception.details()), headers, request);
+	}
+
+	@ExceptionHandler(DomainException.class)
+	ResponseEntity<ApiErrorResponse> domainException(DomainException exception, HttpServletRequest request) {
+		HttpStatus status = switch (exception.category()) {
+			case VALIDATION -> HttpStatus.UNPROCESSABLE_CONTENT;
+			case NOT_FOUND -> HttpStatus.NOT_FOUND;
+			case CONFLICT -> HttpStatus.CONFLICT;
+			case AUTHORIZATION -> HttpStatus.FORBIDDEN;
+			case UNEXPECTED -> HttpStatus.INTERNAL_SERVER_ERROR;
+		};
+		HttpHeaders headers = new HttpHeaders();
+		if (exception.retryAfter() != null) {
+			headers.set(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, exception.retryAfter().toSeconds())));
+		}
+		return response(status, exception.code(), exception.getMessage(), exception.retryable(), null,
 				emptyToNull(exception.details()), headers, request);
 	}
 

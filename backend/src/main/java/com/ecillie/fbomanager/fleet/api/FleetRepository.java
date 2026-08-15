@@ -13,13 +13,19 @@ public interface FleetRepository {
 
 	ServiceVehicleType saveType(ServiceVehicleType type);
 
+	Optional<ServiceVehicleType> findType(String code);
+
 	ServiceVehicle saveVehicle(ServiceVehicle vehicle);
 
 	FuelTruck saveFuelTruck(FuelTruck truck);
 
+	Optional<FuelTruck> findFuelTruck(String vehicleIdentifier);
+
 	Optional<ServiceVehicle> findVehicle(String identifier);
 
 	Optional<ServiceVehicle> lockVehicle(String identifier);
+
+	Optional<VehicleStatus> findCurrentStatus(String identifier);
 
 	RepositoryPage<ServiceVehicle> findVehicles(VehicleFilter filter, RepositoryPageRequest page);
 
